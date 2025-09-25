@@ -1,7 +1,8 @@
 /* Color Variables */
 :root {
   --primary-color: #004a2f;
-  --secondary-color: #002f35;
+  --secondary-color: #f8f8f8;
+  --dark-green: #002f35;
   --accent-color: #ff6337;
   --accent-secondary: #ffa323;
   --white: #ffffff;
@@ -13,7 +14,7 @@
 
 /* Global Styles */
 * {
-  margin: 0;
+  margin: 0; 
   padding: 0;
   box-sizing: border-box;
 }
@@ -22,53 +23,56 @@ html {
   scroll-behavior: smooth;
 }
 
-body {
+.landing-page-wrapper {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
   color: var(--text-dark);
 }
 
-.container {
+.landing-page-wrapper .container {
   width: 90%;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-h1, h2, h3, h4 {
+.landing-page-wrapper h1, 
+.landing-page-wrapper h2, 
+.landing-page-wrapper h3, 
+.landing-page-wrapper h4 {
   font-weight: 700;
   line-height: 1.2;
 }
 
-h1 {
+.landing-page-wrapper h1 {
   font-size: 3rem;
   margin-bottom: 1rem;
 }
 
-h2 {
+.landing-page-wrapper h2 {
   font-size: 2.2rem;
   text-align: center;
   margin-bottom: 2.5rem;
 }
 
-h3 {
+.landing-page-wrapper h3 {
   font-size: 1.5rem;
   margin-bottom: 1rem;
 }
 
-p {
+.landing-page-wrapper p {
   margin-bottom: 1rem;
 }
 
-img {
+.landing-page-wrapper img {
   max-width: 100%;
 }
 
-section {
+.landing-page-wrapper section {
   padding: 5rem 0;
 }
 
 /* Buttons */
-button {
+.landing-page-wrapper button {
   cursor: pointer;
   font-family: inherit;
   font-weight: 600;
@@ -387,7 +391,7 @@ button {
 
 /* How It Works */
 .how-it-works {
-  background-color: var(--secondary-color);
+  background-color: var(--dark-green);
   color: var(--white);
 }
 
@@ -495,7 +499,7 @@ button {
 
 /* Footer */
 footer {
-  background-color: var(--secondary-color);
+  background-color: var(--dark-green);
   color: var(--white);
   padding: 4rem 0 2rem;
 }
@@ -640,11 +644,11 @@ footer {
 }
 
 @media (max-width: 576px) {
-  h1 {
+  .landing-page-wrapper h1 {
     font-size: 2.2rem;
   }
   
-  h2 {
+  .landing-page-wrapper h2 {
     font-size: 1.8rem;
   }
   
