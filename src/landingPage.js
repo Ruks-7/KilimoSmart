@@ -71,7 +71,7 @@ const LandingPage = () => {
           </div>
           
           <div className="auth-buttons">
-            <button className="btn-login">Login</button>
+            <button className="btn-login" onClick={() => window.location.href = '/login'}>Login</button>
               <button className="btn-signup" onClick={() => window.location.href = '/signup'}>Sign Up </button>
           </div>
           
