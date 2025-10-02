@@ -18,6 +18,7 @@ const SignUp = () => {
         firstName: '',
         lastName: '',
         nationalID: '',
+        phoneNumber: '',
         email: '',
         password: '',
         confirmPassword: '',
@@ -314,6 +315,8 @@ const SignUp = () => {
                         required 
                     />
                 </div>
+
+                
             
                 {/* Farm Details */}
                 <div className="filters-section">

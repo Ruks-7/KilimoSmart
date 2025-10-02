@@ -11,6 +11,7 @@ import produce from './Images/Produce.jpg';
 const LandingPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isLoginMenuOpen, setIsLoginMenuOpen] = useState(false);
   
   // Define slideshow images
   const slideshowImages = [
@@ -68,11 +69,61 @@ const LandingPage = () => {
             <a href="#how-it-works">How It Works</a>
             <a href="#testimonials">Success Stories</a>
             <a href="#contact">Contact</a>
+            
+            {/* Mobile Auth Buttons - Only shown in mobile menu */}
+            <div className="mobile-auth-section">
+              <div className="mobile-auth-label">Get Started</div>
+              <a href="/login" className="btn btn-login buyer">
+                <span className="btn-icon">🛒</span>
+                <span>Buyer Login</span>
+              </a>
+              <a href="/loginF" className="btn btn-login farmer">
+                <span className="btn-icon">🌾</span>
+                <span>Farmer Login</span>
+              </a>
+              <a href="/signup" className="btn btn-signup buyer">
+                <span className="btn-icon">🛒</span>
+                <span>Join as Buyer</span>
+              </a>
+              <a href="/signupFarmer" className="btn btn-signup farmer">
+                <span className="btn-icon">🌾</span>
+                <span>Join as Farmer</span>
+              </a>
+            </div>
           </div>
           
-          <div className="auth-buttons">
-            <button className="btn-login" onClick={() => window.location.href = '/login'}>Login</button>
-              <button className="btn-signup" onClick={() => window.location.href = '/signup'}>Sign Up </button>
+          {/* Desktop Auth Buttons - Only shown on desktop */}
+          <div className="desktop-auth-buttons">
+            <div className="login-dropdown">
+              <button 
+                className="btn btn-login"
+                onClick={() => setIsLoginMenuOpen(!isLoginMenuOpen)}
+              >
+                <span className="btn-icon">👤</span>
+                <span>Login</span>
+                <span className="dropdown-arrow">▼</span>
+              </button>
+              {isLoginMenuOpen && (
+                <div className="login-dropdown-menu">
+                  <a href="/login" className="dropdown-item">
+                    <span className="btn-icon">🛒</span>
+                    <span>Buyer Login</span>
+                  </a>
+                  <a href="/loginF" className="dropdown-item">
+                    <span className="btn-icon">🌾</span>
+                    <span>Farmer Login</span>
+                  </a>
+                </div>
+              )}
+            </div>
+            <a href="/signup" className="btn btn-signup buyer">
+              <span className="btn-icon">🛒</span>
+              <span>Join as Buyer</span>
+            </a>
+            <a href="/signupFarmer" className="btn btn-signup farmer">
+              <span className="btn-icon">🌾</span>
+              <span>Join as Farmer</span>
+            </a>
           </div>
           
           <div className="menu-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -88,8 +139,19 @@ const LandingPage = () => {
             <h1>Connecting Farmers & Buyers Across Kenya</h1>
             <p>KilimoSmart brings together agricultural producers and purchasers on one innovative platform, eliminating middlemen and creating fair trade opportunities.</p>
             <div className="hero-buttons">
-              <button className="btn-primary">Get Started <IoMdArrowRoundForward /></button>
-              <button className="btn-secondary">Learn More</button>
+              <a href="/signup" className="btn-primary buyer-cta">
+                <span className="btn-icon">🛒</span>
+                <span>Join as Buyer</span>
+                <IoMdArrowRoundForward className="btn-arrow" />
+              </a>
+              <a href="/signupFarmer" className="btn-primary farmer-cta">
+                <span className="btn-icon">🌾</span>
+                <span>Join as Farmer</span>
+                <IoMdArrowRoundForward className="btn-arrow" />
+              </a>
+              <button className="btn-secondary">
+                <span>Learn More</span>
+              </button>
             </div>
           </div>
           <div className="hero-slideshow">

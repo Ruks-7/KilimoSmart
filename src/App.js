@@ -6,6 +6,7 @@ import Login from './Buyer/Auth/login';
 import Dashboard from './Buyer/Auth/Dashboard';
 
 import SignupFarmer from './Farmer/Auth/sign_up.js';
+import LoginFarmer from './Farmer/Auth/loginF.js';
 
 import './landingPage.css';
 import './Farmer/Auth/Styling/auth.css';
@@ -19,6 +20,7 @@ function App() {
       <Route path="/signup" element={<SignUp />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signupFarmer" element={<SignupFarmer />} />
+      <Route path="/loginF" element={<LoginFarmer />} />
       <Route path="/auth/dashboard" element={<Dashboard />} />
     </Routes>
   );
