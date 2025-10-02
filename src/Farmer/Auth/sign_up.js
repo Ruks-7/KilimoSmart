@@ -15,14 +15,15 @@ L.Icon.Default.mergeOptions({
 });
 const SignUp = () => {
     const [formData, setFormData] = useState({
-        username: '',
+        firstName: '',
+        lastName: '',
+        nationalID: '',
         email: '',
         password: '',
         confirmPassword: '',
         location: null,
         county: '',
         subcounty: '',
-        ward: '',
         farmType: '',
         farmSize: ''
     });
@@ -94,13 +95,6 @@ const SignUp = () => {
         'Root Crops (Potatoes, Sweet Potatoes, Cassava)',
         'Vegetables (Tomatoes, Onions, Cabbages)',
         'Fruits (Bananas, Mangoes, Avocados)',
-        'Cash Crops (Coffee, Tea, Sugarcane)',
-        'Livestock (Cattle, Goats, Sheep)',
-        'Poultry (Chickens, Ducks, Turkeys)',
-        'Dairy Farming',
-        'Fish Farming (Aquaculture)',
-        'Mixed Farming',
-        'Organic Farming'
     ];
 
     const farmSizes = [
@@ -266,17 +260,32 @@ const SignUp = () => {
             <h2>🌾 Farmer Sign Up</h2>
             <p className="signup-description">Join KilimoSmart and connect with buyers across Kenya</p>
             <form onSubmit={handleSubmit} className="auth-form">
-                <div className="form-group">
-                    <label htmlFor="username">👤 Username</label>
-                    <input 
-                        type="text" 
-                        id="username"
-                        name="username" 
-                        placeholder="Enter your username" 
-                        value={formData.username} 
-                        onChange={handleChange} 
-                        required 
-                    />
+                <div className="filter-row">
+                    <div className="form-group">
+                        <label htmlFor="firstName">👤 First Name</label>
+                        <input 
+                            type="text" 
+                            id="firstName"
+                            name="firstName" 
+                            placeholder="Enter your first name" 
+                            value={formData.firstName} 
+                            onChange={handleChange} 
+                            required 
+                        />
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="lastName">👤 Last Name</label>
+                        <input 
+                            type="text" 
+                            id="lastName"
+                            name="lastName" 
+                            placeholder="Enter your last name" 
+                            value={formData.lastName} 
+                            onChange={handleChange} 
+                            required 
+                        />
+                    </div>
                 </div>
                 
                 <div className="form-group">
@@ -291,59 +300,21 @@ const SignUp = () => {
                         required 
                     />
                 </div>
-                
-                {/* Location Filters */}
-                <div className="filters-section">
-                    <h3 className="section-title">🗺️ Location Details</h3>
-                    
-                    <div className="filter-row">
-                        <div className="form-group">
-                            <label htmlFor="county">🏛️ County</label>
-                            <select 
-                                id="county"
-                                name="county"
-                                value={selectedCounty}
-                                onChange={handleCountyChange}
-                                required
-                            >
-                                <option value="">Select County</option>
-                                {Object.keys(kenyaCounties).sort().map(county => (
-                                    <option key={county} value={county}>{county}</option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        <div className="form-group">
-                            <label htmlFor="subcounty">🏘️ Subcounty</label>
-                            <select 
-                                id="subcounty"
-                                name="subcounty"
-                                value={selectedSubcounty}
-                                onChange={handleSubcountyChange}
-                                disabled={!selectedCounty}
-                                required
-                            >
-                                <option value="">Select Subcounty</option>
-                                {filteredSubcounties.map(subcounty => (
-                                    <option key={subcounty} value={subcounty}>{subcounty}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div className="form-group">
-                        <label htmlFor="ward">🏠 Ward/Village (Optional)</label>
-                        <input 
-                            type="text" 
-                            id="ward"
-                            name="ward" 
-                            placeholder="Enter your ward or village name" 
-                            value={formData.ward} 
-                            onChange={handleChange}
-                        />
-                    </div>
-                </div>
 
+                {/* National ID */}
+                <div className="form-group">
+                    <label htmlFor="nationalID">🆔 National ID Number</label>
+                    <input 
+                        type="text" 
+                        id="nationalID"
+                        name="nationalID" 
+                        placeholder="Enter your national ID number" 
+                        value={formData.nationalID} 
+                        onChange={handleChange} 
+                        required 
+                    />
+                </div>
+            
                 {/* Farm Details */}
                 <div className="filters-section">
                     <h3 className="section-title">🚜 Farm Information</h3>
@@ -377,6 +348,46 @@ const SignUp = () => {
                                 <option value="">Select Farm Size</option>
                                 {farmSizes.map(size => (
                                     <option key={size} value={size}>{size}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                                {/* Location Filters */}
+                <div className="filters-section">
+                    <h3 className="section-title">🗺️ Location Details</h3>
+                    
+                    <div className="filter-row">
+                        <div className="form-group">
+                            <label htmlFor="county">🏛️ County</label>
+                            <select 
+                                id="county"
+                                name="county"
+                                value={selectedCounty}
+                                onChange={handleCountyChange}
+                                required
+                            >
+                                <option value="">Select County</option>
+                                {Object.keys(kenyaCounties).sort().map(county => (
+                                    <option key={county} value={county}>{county}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        <div className="form-group">
+                            <label htmlFor="subcounty">🏘️ Subcounty</label>
+                            <select 
+                                id="subcounty"
+                                name="subcounty"
+                                value={selectedSubcounty}
+                                onChange={handleSubcountyChange}
+                                disabled={!selectedCounty}
+                                required
+                            >
+                                <option value="">Select Subcounty</option>
+                                {filteredSubcounties.map(subcounty => (
+                                    <option key={subcounty} value={subcounty}>{subcounty}</option>
                                 ))}
                             </select>
                         </div>
