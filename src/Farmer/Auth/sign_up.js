@@ -482,7 +482,7 @@ const SignUp = () => {
                     </div>
                 </div>
 
-                {/* Password fields side by side */}
+                {/* Password fields */}
                 <div className="filter-row">
                     <div className="form-group">
                         <label htmlFor="password">🔒 Password</label>
