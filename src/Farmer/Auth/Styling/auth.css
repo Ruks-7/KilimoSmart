@@ -1029,3 +1029,133 @@ body.auth-page::before {
     transform: translateY(-50%) scale(1.1);
     opacity: 1;
 }
+
+/* Current Location Button */
+.location-btn {
+    margin-bottom: 15px;
+    padding: 12px 20px;
+    background-color: var(--farmer-primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--farmer-border-radius);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    width: 100%;
+    justify-content: center;
+}
+
+.location-btn:hover:not(:disabled) {
+    background-color: var(--farmer-accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 74, 47, 0.2);
+}
+
+.location-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.location-btn.detected {
+    background-color: var(--farmer-accent-color);
+}
+
+/* Location Info Box */
+.location-info {
+    padding: 10px;
+    background-color: var(--farmer-secondary-color);
+    border-radius: var(--farmer-border-radius);
+    margin-bottom: 15px;
+    font-size: 13px;
+    border: 1px solid var(--farmer-border-color);
+    line-height: 1.6;
+}
+
+.location-verified {
+    color: var(--farmer-success-color);
+    font-weight: bold;
+}
+
+/* Map Container Height */
+.map-container .leaflet-container {
+    height: 400px !important;
+    width: 100% !important;
+}
+
+/* Radius Slider Labels */
+.radius-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--farmer-text-color);
+    opacity: 0.7;
+}
+
+.radius-labels span {
+    flex: 1;
+    text-align: center;
+}
+
+.radius-labels span:first-child {
+    text-align: left;
+}
+
+.radius-labels span:last-child {
+    text-align: right;
+}
+
+/* Radius Slider */
+.radius-slider {
+    width: 100%;
+    height: 6px;
+    border-radius: 5px;
+    background: linear-gradient(to right, 
+        var(--farmer-primary-color) 0%, 
+        var(--farmer-accent-color) 50%, 
+        var(--farmer-error-color) 100%);
+    outline: none;
+    opacity: 0.9;
+    transition: opacity 0.3s;
+    cursor: pointer;
+}
+
+.radius-slider:hover {
+    opacity: 1;
+}
+
+.radius-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--farmer-primary-color);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 74, 47, 0.4);
+    transition: all 0.3s ease;
+}
+
+.radius-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 4px 12px rgba(0, 74, 47, 0.6);
+}
+
+.radius-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--farmer-primary-color);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 74, 47, 0.4);
+    transition: all 0.3s ease;
+}
+
+.radius-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 4px 12px rgba(0, 74, 47, 0.6);
+}

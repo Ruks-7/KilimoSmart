@@ -1,10 +1,9 @@
-//A signUp page with location verification(farmer radius) using OpenStreetMap with Nominatim API
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Styling/auth.css';
 import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -13,82 +12,36 @@ L.Icon.Default.mergeOptions({
     iconUrl: require('leaflet/dist/images/marker-icon.png'),
     shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
+
 const SignUp = () => {
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
-        nationalID: '',
         phoneNumber: '',
         email: '',
         password: '',
         confirmPassword: '',
         location: null,
-        county: '',
-        subcounty: '',
+        county: '',       
+        subcounty: '', 
         farmType: '',
-        farmSize: ''
+        farmSize: '',
+        geofenceRadius: 500  // Default 500m
     });
+    
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [mapCenter, setMapCenter] = useState([-0.0236, 37.9062]);
     const [mapZoom, setMapZoom] = useState(6);
-    const [selectedCounty, setSelectedCounty] = useState('');
-    const [selectedSubcounty, setSelectedSubcounty] = useState('');
-    const [filteredSubcounties, setFilteredSubcounties] = useState([]);
+    
+    // Security: Current location tracking
+    const [currentLocation, setCurrentLocation] = useState(null);
+    const [isGettingLocation, setIsGettingLocation] = useState(false);
+    const [locationVerified, setLocationVerified] = useState(false);
+    
     const navigate = useNavigate();
-
-    // Kenya Counties and Subcounties Data
-    const kenyaCounties = {
-        'Nairobi': ['Westlands', 'Dagoretti North', 'Dagoretti South', 'Langata', 'Kibra', 'Roysambu', 'Kasarani', 'Ruaraka', 'Embakasi South', 'Embakasi North', 'Embakasi Central', 'Embakasi East', 'Embakasi West', 'Makadara', 'Kamukunji', 'Starehe', 'Mathare'],
-        'Mombasa': ['Changamwe', 'Jomba', 'Kisauni', 'Nyali', 'Likoni', 'Mvita'],
-        'Kwale': ['Msambweni', 'Lunga Lunga', 'Matuga', 'Kinango'],
-        'Kilifi': ['Kilifi North', 'Kilifi South', 'Kaloleni', 'Rabai', 'Ganze', 'Malindi', 'Magarini'],
-        'Tana River': ['Garsen', 'Galole', 'Bura'],
-        'Lamu': ['Lamu East', 'Lamu West'],
-        'Taita Taveta': ['Taveta', 'Wundanyi', 'Mwatate', 'Voi'],
-        'Garissa': ['Garissa Township', 'Balambala', 'Lagdera', 'Dadaab', 'Fafi', 'Ijara'],
-        'Wajir': ['Wajir North', 'Wajir East', 'Tarbaj', 'Wajir West', 'Eldas', 'Wajir South'],
-        'Mandera': ['Mandera West', 'Banissa', 'Mandera North', 'Mandera South', 'Mandera East', 'Lafey'],
-        'Marsabit': ['Moyale', 'North Horr', 'Saku', 'Laisamis'],
-        'Isiolo': ['Isiolo North', 'Isiolo South'],
-        'Meru': ['Igembe South', 'Igembe Central', 'Igembe North', 'Tigania West', 'Tigania East', 'North Imenti', 'Buuri', 'Central Imenti', 'South Imenti'],
-        'Tharaka Nithi': ['Tharaka', 'Chuka/Igambang\'ombe', 'Maara'],
-        'Embu': ['Manyatta', 'Runyenjes', 'Mbeere South', 'Mbeere North'],
-        'Kitui': ['Mwingi North', 'Mwingi West', 'Mwingi Central', 'Kitui West', 'Kitui Rural', 'Kitui Central', 'Kitui East', 'Kitui South'],
-        'Machakos': ['Masinga', 'Yatta', 'Kangundo', 'Matungulu', 'Kathiani', 'Mavoko', 'Machakos Town', 'Mwala'],
-        'Makueni': ['Kilome', 'Makueni', 'Kibwezi West', 'Kibwezi East', 'Kaiti', 'Mbooni'],
-        'Nyandarua': ['Kinangop', 'Kipipiri', 'Ol Kalou', 'Ol Joro Orok', 'Ndaragwa'],
-        'Nyeri': ['Tetu', 'Kieni', 'Mathira', 'Othaya', 'Mukurweini', 'Nyeri Town'],
-        'Kirinyaga': ['Mwea', 'Gichugu', 'Ndia', 'Kirinyaga Central'],
-        'Murang\'a': ['Kangema', 'Mathioya', 'Kiharu', 'Kigumo', 'Maragwa', 'Kandara', 'Gatanga'],
-        'Kiambu': ['Gatundu South', 'Gatundu North', 'Juja', 'Thika Town', 'Ruiru', 'Githunguri', 'Kiambu Town', 'Kiambaa', 'Kabete', 'Kikuyu', 'Limuru', 'Lari'],
-        'Turkana': ['Turkana North', 'Turkana West', 'Turkana Central', 'Loima', 'Turkana South', 'Turkana East'],
-        'West Pokot': ['Kapenguria', 'Sigor', 'Kacheliba', 'Pokot South'],
-        'Samburu': ['Samburu West', 'Samburu North', 'Samburu East'],
-        'Trans Nzoia': ['Kwanza', 'Endebess', 'Saboti', 'Kiminini', 'Cherangany'],
-        'Uasin Gishu': ['Soy', 'Turbo', 'Moiben', 'Ainabkoi', 'Kapseret', 'Kesses'],
-        'Elgeyo Marakwet': ['Marakwet East', 'Marakwet West', 'Keiyo North', 'Keiyo South'],
-        'Nandi': ['Tinderet', 'Aldai', 'Nandi Hills', 'Chesumei', 'Emgwen', 'Mosop'],
-        'Baringo': ['Tiaty', 'Baringo North', 'Baringo Central', 'Baringo South', 'Mogotio', 'Eldama Ravine'],
-        'Laikipia': ['Laikipia West', 'Laikipia East', 'Laikipia North'],
-        'Nakuru': ['Molo', 'Njoro', 'Naivasha', 'Gilgil', 'Kuresoi South', 'Kuresoi North', 'Subukia', 'Rongai', 'Bahati', 'Nakuru Town West', 'Nakuru Town East'],
-        'Narok': ['Kilgoris', 'Emurua Dikirr', 'Narok North', 'Narok East', 'Narok South', 'Narok West'],
-        'Kajiado': ['Kajiado North', 'Kajiado Central', 'Kajiado East', 'Kajiado West', 'Kajiado South'],
-        'Kericho': ['Kipkelion East', 'Kipkelion West', 'Ainamoi', 'Bureti', 'Belgut', 'Sigowet/Soin'],
-        'Bomet': ['Sotik', 'Chepalungu', 'Bomet East', 'Bomet Central', 'Konoin'],
-        'Kakamega': ['Lugari', 'Likuyani', 'Malava', 'Lurambi', 'Navakholo', 'Mumias West', 'Mumias East', 'Matungu', 'Butere', 'Khwisero', 'Shinyalu', 'Ikolomani'],
-        'Vihiga': ['Vihiga', 'Sabatia', 'Hamisi', 'Luanda', 'Emuhaya'],
-        'Bungoma': ['Mt. Elgon', 'Sirisia', 'Kabuchai', 'Bumula', 'Kanduyi', 'Webuye East', 'Webuye West', 'Kimilili', 'Tongaren'],
-        'Busia': ['Teso North', 'Teso South', 'Nambale', 'Matayos', 'Butula', 'Funyula', 'Budalangi'],
-        'Siaya': ['Ugenya', 'Ugunja', 'Alego Usonga', 'Gem', 'Bondo', 'Rarieda'],
-        'Kisumu': ['Kisumu East', 'Kisumu West', 'Kisumu Central', 'Seme', 'Nyando', 'Muhoroni', 'Nyakach'],
-        'Homa Bay': ['Kasipul', 'Kabondo Kasipul', 'Karachuonyo', 'Rangwe', 'Homa Bay Town', 'Ndhiwa', 'Suba North', 'Suba South'],
-        'Migori': ['Rongo', 'Awendo', 'Suna East', 'Suna West', 'Uriri', 'Nyatike', 'Kuria West', 'Kuria East'],
-        'Kisii': ['Bonchari', 'South Mugirango', 'Bomachoge Borabu', 'Bobasi', 'Bomachoge Chache', 'Nyaribari Masaba', 'Nyaribari Chache', 'Kitutu Chache North', 'Kitutu Chache South'],
-        'Nyamira': ['Kitutu Masaba', 'West Mugirango', 'North Mugirango', 'Borabu']
-    };
 
     const farmTypes = [
         'Cereals (Maize, Wheat, Rice)',
@@ -104,51 +57,152 @@ const SignUp = () => {
         'Large Scale (20 - 100 acres)',
         'Commercial (Over 100 acres)'
     ];
+
+    // Calculate distance between two coordinates (Haversine formula)
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371e3; // Earth's radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c; // Distance in meters
+    };
+
+    // Get user's current location
+    const getCurrentLocation = () => {
+        setIsGettingLocation(true);
+        setError('');
+
+        if (!navigator.geolocation) {
+            setError('Geolocation is not supported by your browser');
+            setIsGettingLocation(false);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude, accuracy } = position.coords;
+                
+                setCurrentLocation({
+                    lat: latitude,
+                    lng: longitude,
+                    accuracy: accuracy,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Center map on current location
+                setMapCenter([latitude, longitude]);
+                setMapZoom(16);
+
+                // AUTO-FILL FARM LOCATION with current location
+                setFormData(prev => ({
+                    ...prev,
+                    location: { lat: latitude, lng: longitude }
+                }));
+                
+                // Auto-verify since farm location = current location
+                setLocationVerified(true);
+                
+                fetchAddress(latitude, longitude);
+                setIsGettingLocation(false);
+                
+                // Show success message
+                setError('');
+            },
+            (error) => {
+                setIsGettingLocation(false);
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        setError('Location permission denied. Please enable location access.');
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        setError('Location information unavailable.');
+                        break;
+                    case error.TIMEOUT:
+                        setError('Location request timed out.');
+                        break;
+                    default:
+                        setError('An unknown error occurred while getting location.');
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    };
+
+    // Verify location when user adjusts/refines via map or search
+    const verifyLocationSecurity = (clickedLat, clickedLng) => {
+        if (!currentLocation) {
+            setLocationVerified(false);
+            setError('⚠️ Please use "Get My Location" button first to verify your position');
+            return false;
+        }
+
+        const distance = calculateDistance(
+            currentLocation.lat,
+            currentLocation.lng,
+            clickedLat,
+            clickedLng
+        );
+
+        // Allow reasonable adjustment radius - farmer might refine exact plot location
+        const maxAllowedDistance = 500; // Increased to 500m for practical farm location refinement
+
+        if (distance > maxAllowedDistance) {
+            setLocationVerified(false);
+            setError(`⚠️ Location is ${Math.round(distance)}m from your current position. For security, stay within 500m when adjusting location. If your farm is further away, please go there first.`);
+            return false;
+        } else {
+            setLocationVerified(true);
+            if (distance > 50) {
+                // Show info message for adjustments > 50m
+                setError(`✅ Location adjusted by ${Math.round(distance)}m. This is acceptable for farm plot precision.`);
+                setTimeout(() => setError(''), 5000); // Clear after 5 seconds
+            } else {
+                setError('');
+            }
+            return true;
+        }
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
         setError('');
     };
 
-    const handleCountyChange = (e) => {
-        const county = e.target.value;
-        setSelectedCounty(county);
-        setSelectedSubcounty('');
-        setFormData({ 
-            ...formData, 
-            county: county,
-            subcounty: ''
-        });
-        setFilteredSubcounties(kenyaCounties[county] || []);
-        
-        // Auto-search and center map on county
-        if (county) {
-            handleSearch(county);
-        }
-    };
-
-    const handleSubcountyChange = (e) => {
-        const subcounty = e.target.value;
-        setSelectedSubcounty(subcounty);
-        setFormData({ 
-            ...formData, 
-            subcounty: subcounty
-        });
-        
-        // Auto-search for subcounty location
-        if (subcounty && selectedCounty) {
-            handleSearch(`${subcounty}, ${selectedCounty}`);
-        }
+    const handleRadiusChange = (e) => {
+        setFormData({ ...formData, geofenceRadius: parseInt(e.target.value) });
     };
 
     const handleFarmDetailsChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
+
     const handleMapClick = (e) => {
         const { lat, lng } = e.latlng;
+        
+        // Security check: verify clicked location against current location
+        const isVerified = verifyLocationSecurity(lat, lng);
+        
+        if (currentLocation && !isVerified) {
+            // Don't set location if verification fails
+            return;
+        }
+        
         setFormData({ ...formData, location: { lat, lng } });
         setError('');
         fetchAddress(lat, lng);
     };
+
     const fetchAddress = async (lat, lng) => {
         try {
             const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
@@ -156,10 +210,24 @@ const SignUp = () => {
                     lat,
                     lon: lng,
                     format: 'json',
+                    addressdetails: 1
                 },
             });
             const address = response.data.display_name;
-            setFormData((prevData) => ({ ...prevData, address }));
+            const addressData = response.data.address;
+            
+            // Auto-fill county and subcounty from map coordinates
+            const detectedCounty = addressData.county || addressData.state || '';
+            const detectedSubcounty = addressData.suburb || addressData.town || addressData.village || '';
+            
+            setFormData((prevData) => ({ 
+                ...prevData, 
+                address,
+                county: detectedCounty,
+                subcounty: detectedSubcounty
+            }));
+            
+            console.log('📍 Auto-detected location:', { county: detectedCounty, subcounty: detectedSubcounty });
         } catch (err) {
             console.error('Error fetching address:', err);
             setError('Failed to fetch address. Please try again.');
@@ -196,7 +264,6 @@ const SignUp = () => {
         const query = e.target.value;
         setSearchQuery(query);
         
-        // Debounce search to avoid too many API calls
         clearTimeout(window.searchTimeout);
         window.searchTimeout = setTimeout(() => {
             if (query.length >= 2) {
@@ -210,6 +277,13 @@ const SignUp = () => {
     const handleSearchResultClick = (result) => {
         const lat = parseFloat(result.lat);
         const lng = parseFloat(result.lon);
+        
+        // Security check for search results too
+        const isVerified = verifyLocationSecurity(lat, lng);
+        
+        if (currentLocation && !isVerified) {
+            return;
+        }
         
         setFormData({ 
             ...formData, 
@@ -230,37 +304,160 @@ const SignUp = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
             return;
         }
+        
         if (!formData.location) {
             setError('Please select your location on the map');
             return;
         }
+
+        // Security check: Ensure current location was captured
+        if (!currentLocation) {
+            setError('⚠️ Security: Please use "Use My Current Location" button to verify your location');
+            return;
+        }
+
+        // Security check: Ensure location is verified
+        if (!locationVerified) {
+            setError('⚠️ Security: Selected location must be verified against your current location');
+            return;
+        }
+
         try {
-            const response = await axios.post('https://kilimosmart-backend.onrender.com/api/farmers/signup', formData);
-            if (response.status === 201) {
-                navigate('/loginF');
-            } else {
-                setError('Sign up failed. Please try again.');
-            }
+            const signupData = {
+                // User data
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                phoneNumber: formData.phoneNumber,
+                email: formData.email,
+                password: formData.password,
+                userType: 'farmer',
+                
+                // Location data with security info
+                location: {
+                    latitude: formData.location.lat,
+                    longitude: formData.location.lng,
+                    county: formData.county,
+                    subcounty: formData.subcounty,
+                    addressDescription: formData.address,
+                    geofenceRadius: formData.geofenceRadius,
+                    
+                    // Security metadata
+                    currentLocation: {
+                        latitude: currentLocation.lat,
+                        longitude: currentLocation.lng,
+                        accuracy: currentLocation.accuracy,
+                        timestamp: currentLocation.timestamp
+                    },
+                    locationVerified: locationVerified,
+                    verificationDistance: calculateDistance(
+                        currentLocation.lat,
+                        currentLocation.lng,
+                        formData.location.lat,
+                        formData.location.lng
+                    )
+                },
+                
+                // Farm data
+                farmType: formData.farmType,
+                farmSize: formData.farmSize,
+            };
+
+            const response = await axios.post(
+                'http://localhost:5000/api/auth/farmer/signup',
+                signupData
+            );
+
+            console.log('Signup successful:', response.data);
+            navigate('/loginF');
+            
         } catch (err) {
-            console.error('Error during sign up:', err);
-            setError('Sign up failed. Please try again.');
+            console.error('Signup error:', err);
+            setError(err.response?.data?.message || 'Sign up failed. Please try again.');
         }
     };
+
     const LocationMarker = () => {
         useMapEvents({
             click: handleMapClick,
         });
-        return formData.location ? <Marker position={[formData.location.lat, formData.location.lng]} /> : null;
+        
+        // Get computed CSS colors for Leaflet
+        const getComputedColor = (variable) => {
+            if (typeof window !== 'undefined') {
+                return getComputedStyle(document.documentElement)
+                    .getPropertyValue(variable).trim();
+            }
+            return '#004a2f'; // fallback
+        };
+
+        const primaryColor = getComputedColor('--farmer-primary-color');
+        const successColor = getComputedColor('--farmer-success-color');
+        const accentColor = getComputedColor('--farmer-accent-color');
+        
+        return (
+            <>
+                {/* Current Location Marker (Blue) */}
+                {currentLocation && (
+                    <>
+                        <Circle
+                            center={[currentLocation.lat, currentLocation.lng]}
+                            radius={currentLocation.accuracy}
+                            pathOptions={{
+                                color: primaryColor,
+                                fillColor: primaryColor,
+                                fillOpacity: 0.1,
+                                weight: 2,
+                                dashArray: '5, 5'
+                            }}
+                        />
+                        <Marker 
+                            position={[currentLocation.lat, currentLocation.lng]}
+                            icon={L.icon({
+                                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+                                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                                iconSize: [25, 41],
+                                iconAnchor: [12, 41],
+                                popupAnchor: [1, -34],
+                                shadowSize: [41, 41]
+                            })}
+                        />
+                    </>
+                )}
+                
+                {/* Selected Farm Location Marker (Green) */}
+                {formData.location && (
+                    <>
+                        <Marker position={[formData.location.lat, formData.location.lng]} />
+                        <Circle
+                            center={[formData.location.lat, formData.location.lng]}
+                            radius={formData.geofenceRadius}
+                            pathOptions={{
+                                color: locationVerified ? successColor : accentColor,
+                                fillColor: locationVerified ? successColor : accentColor,
+                                fillOpacity: 0.2,
+                                weight: 2
+                            }}
+                        />
+                    </>
+                )}
+            </>
+        );
     };
+
     return (
-        <div className="auth-container">
+        <div className="auth-container signup-container">
             <h2>🌾 Farmer Sign Up</h2>
             <p className="signup-description">Join KilimoSmart and connect with buyers across Kenya</p>
+            
+            {error && <div className="error-message">⚠️ {error}</div>}
+            
             <form onSubmit={handleSubmit} className="auth-form">
+                {/* Personal Information */}
                 <div className="filter-row">
                     <div className="form-group">
                         <label htmlFor="firstName">👤 First Name</label>
@@ -289,33 +486,17 @@ const SignUp = () => {
                     </div>
                 </div>
 
-                {/* National ID and Phone Number side by side */}
-                <div className="filter-row">
-                    <div className="form-group">
-                        <label htmlFor="nationalID">🆔 National ID Number</label>
-                        <input 
-                            type="text" 
-                            id="nationalID"
-                            name="nationalID" 
-                            placeholder="Enter your national ID number" 
-                            value={formData.nationalID} 
-                            onChange={handleChange} 
-                            required 
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="phoneNumber">📞 Phone Number</label>
-                        <input 
-                            type="tel" 
-                            id="phoneNumber"
-                            name="phoneNumber" 
-                            placeholder="Enter your phone number" 
-                            value={formData.phoneNumber} 
-                            onChange={handleChange} 
-                            required 
-                        />
-                    </div>
+                <div className="form-group">
+                    <label htmlFor="phoneNumber">📞 Phone Number</label>
+                    <input 
+                        type="tel" 
+                        id="phoneNumber"
+                        name="phoneNumber" 
+                        placeholder="+254712345678" 
+                        value={formData.phoneNumber} 
+                        onChange={handleChange} 
+                        required 
+                    />
                 </div>
                 
                 <div className="form-group">
@@ -370,116 +551,146 @@ const SignUp = () => {
                     </div>
                 </div>
 
-                {/* Location Filters */}
-                <div className="filters-section">
-                    <h3 className="section-title">🗺️ Location Details</h3>
-                    
-                    <div className="filter-row">
-                        <div className="form-group">
-                            <label htmlFor="county">🏛️ County</label>
-                            <select 
-                                id="county"
-                                name="county"
-                                value={selectedCounty}
-                                onChange={handleCountyChange}
-                                required
-                            >
-                                <option value="">Select County</option>
-                                {Object.keys(kenyaCounties).sort().map(county => (
-                                    <option key={county} value={county}>{county}</option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        <div className="form-group">
-                            <label htmlFor="subcounty">🏘️ Subcounty</label>
-                            <select 
-                                id="subcounty"
-                                name="subcounty"
-                                value={selectedSubcounty}
-                                onChange={handleSubcountyChange}
-                                disabled={!selectedCounty}
-                                required
-                            >
-                                <option value="">Select Subcounty</option>
-                                {filteredSubcounties.map(subcounty => (
-                                    <option key={subcounty} value={subcounty}>{subcounty}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
+                {/* Location Section with Intelligent Auto-Fill */}
                 <div className="form-group">
                     <label>📍 Farm Location</label>
-                    <p className="location-help">Search for your location or click on the map to mark your farm's location in Kenya</p>
+                    <p className="location-help">
+                        🎯 Click below to auto-detect your location, then refine if needed using search or map
+                    </p>
                     
-                    {/* Search Bar */}
-                    <div className="location-search">
-                        <div className="search-input-wrapper">
-                            <input
-                                type="text"
-                                placeholder="🔍 Search for your town, city, or area in Kenya..."
-                                value={searchQuery}
-                                onChange={handleSearchInputChange}
-                                className="search-input"
-                            />
-                            {searchQuery && (
-                                <button
-                                    type="button"
-                                    onClick={clearSearch}
-                                    className="clear-search"
-                                >
-                                    ✕
-                                </button>
+                    {/* Smart Location Button */}
+                    <button
+                        type="button"
+                        onClick={getCurrentLocation}
+                        disabled={isGettingLocation}
+                        className={`location-btn ${currentLocation ? 'detected' : ''}`}
+                    >
+                        {isGettingLocation ? '⏳ Getting Location...' : 
+                         currentLocation ? '✅ Location Set - Adjust if Needed' : 
+                         '📍 Get My Location'}
+                    </button>
+                    
+                    {currentLocation && (
+                        <div className="location-info">
+                            ✅ GPS Position: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+                            <br />
+                            📏 Accuracy: ±{Math.round(currentLocation.accuracy)}m
+                            {locationVerified && (
+                                <>
+                                    <br />
+                                    <span className="location-verified">
+                                        ✓ Farm Location Verified
+                                    </span>
+                                </>
                             )}
-                            {isSearching && <div className="search-spinner">⏳</div>}
                         </div>
-                        
-                        {/* Search Results */}
-                        {searchResults.length > 0 && (
-                            <div className="search-results">
-                                {searchResults.map((result, index) => (
-                                    <div
-                                        key={index}
-                                        className="search-result-item"
-                                        onClick={() => handleSearchResultClick(result)}
-                                    >
-                                        <div className="result-name">📍 {result.display_name.split(',')[0]}</div>
-                                        <div className="result-details">{result.display_name}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    )}
                     
-                    <div className="map-container">
-                        <MapContainer 
-                            center={mapCenter} 
-                            zoom={mapZoom} 
-                            style={{ height: '350px', width: '100%' }}
-                            key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
-                        >
-                            <TileLayer 
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                            />
-                            <LocationMarker />
-                        </MapContainer>
-                        
-                        {/* Conditional instruction overlay - only shows when no location is selected */}
-                        {!formData.location && (
-                            <div className="map-instruction">
-                                📍 Click on the map to select your farm location
+                    {/* Optional Refinement: Search Bar */}
+                    {currentLocation && (
+                        <>
+                            <div className="location-search">
+                                <p className="location-help" style={{ marginTop: '15px', marginBottom: '8px' }}>
+                                    💡 <strong>Optional:</strong> Search or click the map below to refine your exact farm plot location
+                                </p>
+                                <div className="search-input-wrapper">
+                                    <input
+                                        type="text"
+                                        placeholder="🔍 Refine location: Search for street, area, or landmark..."
+                                        value={searchQuery}
+                                        onChange={handleSearchInputChange}
+                                        className="search-input"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            type="button"
+                                            onClick={clearSearch}
+                                            className="clear-search"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                    {isSearching && <div className="search-spinner">⏳</div>}
+                                </div>
+                            
+                                {searchResults.length > 0 && (
+                                    <div className="search-results">
+                                        {searchResults.map((result, index) => (
+                                            <div
+                                                key={index}
+                                                className="search-result-item"
+                                                onClick={() => handleSearchResultClick(result)}
+                                            >
+                                                <div className="result-name">📍 {result.display_name.split(',')[0]}</div>
+                                                <div className="result-details">{result.display_name}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                        
-                        {formData.location && (
-                            <div className="selected-location">
-                                📍 Selected Location: {formData.address || `${formData.location.lat.toFixed(4)}, ${formData.location.lng.toFixed(4)}`}
-                            </div>
-                        )}
+                        </>
+                    )}
+                    
+                    {/* Interactive Map - Always visible after getting location */}
+                    {currentLocation && (
+                        <div className="map-container">
+                            <MapContainer 
+                                center={mapCenter} 
+                                zoom={mapZoom}
+                                key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
+                            >
+                                <TileLayer 
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                />
+                                <LocationMarker />
+                            </MapContainer>
+                            
+                            {formData.location && (
+                                <div className="selected-location">
+                                    {locationVerified ? '✅ Verified' : '⏳ Verifying'}: {formData.address || `${formData.location.lat.toFixed(4)}, ${formData.location.lng.toFixed(4)}`}
+                                    {formData.county && (
+                                        <>
+                                            <br />
+                                            <small>🏛️ {formData.county}{formData.subcounty && ` • ${formData.subcounty}`}</small>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Geofence Radius */}
+                <div className="form-group">
+                    <label htmlFor="geofenceRadius">
+                        📏 Delivery Coverage Area: <strong>
+                            {formData.geofenceRadius >= 1000 
+                                ? `${(formData.geofenceRadius / 1000).toFixed(1)} km`
+                                : `${formData.geofenceRadius}m`
+                            }
+                        </strong>
+                    </label>
+                    <p className="location-help">
+                        Set how far you can deliver (200m for local, up to 25km for wide coverage)
+                    </p>
+                    <input
+                        type="range"
+                        id="geofenceRadius"
+                        name="geofenceRadius"
+                        min="200"
+                        max="25000"
+                        step="100"
+                        value={formData.geofenceRadius}
+                        onChange={handleRadiusChange}
+                        className="radius-slider"
+                    />
+                    <div className="radius-labels">
+                        <span>🏘️ Neighborhood (200m)</span>
+                        <span>🏙️ Town (5km)</span>
+                        <span>🌍 Regional (25km)</span>
                     </div>
+
                 </div>
 
                 {/* Password fields */}
@@ -511,10 +722,17 @@ const SignUp = () => {
                     </div>
                 </div>
                 
-                {error && <div className="error-message">⚠️ {error}</div>}
-                <button type="submit" disabled={!formData.location}>
+                <button 
+                    type="submit" 
+                    disabled={!formData.location || !locationVerified}
+                    className="auth-btn"
+                >
                     🚀 Create Farmer Account
                 </button>
+                
+                <p className="auth-redirect">
+                    Already have an account? <a href="/loginF">Login here</a>
+                </p>
             </form>
         </div>
     );
