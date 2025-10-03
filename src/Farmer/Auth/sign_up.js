@@ -288,6 +288,35 @@ const SignUp = () => {
                         />
                     </div>
                 </div>
+
+                {/* National ID and Phone Number side by side */}
+                <div className="filter-row">
+                    <div className="form-group">
+                        <label htmlFor="nationalID">🆔 National ID Number</label>
+                        <input 
+                            type="text" 
+                            id="nationalID"
+                            name="nationalID" 
+                            placeholder="Enter your national ID number" 
+                            value={formData.nationalID} 
+                            onChange={handleChange} 
+                            required 
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="phoneNumber">📞 Phone Number</label>
+                        <input 
+                            type="tel" 
+                            id="phoneNumber"
+                            name="phoneNumber" 
+                            placeholder="Enter your phone number" 
+                            value={formData.phoneNumber} 
+                            onChange={handleChange} 
+                            required 
+                        />
+                    </div>
+                </div>
                 
                 <div className="form-group">
                     <label htmlFor="email">📧 Email Address</label>
@@ -302,22 +331,6 @@ const SignUp = () => {
                     />
                 </div>
 
-                {/* National ID */}
-                <div className="form-group">
-                    <label htmlFor="nationalID">🆔 National ID Number</label>
-                    <input 
-                        type="text" 
-                        id="nationalID"
-                        name="nationalID" 
-                        placeholder="Enter your national ID number" 
-                        value={formData.nationalID} 
-                        onChange={handleChange} 
-                        required 
-                    />
-                </div>
-
-                
-            
                 {/* Farm Details */}
                 <div className="filters-section">
                     <h3 className="section-title">🚜 Farm Information</h3>
@@ -357,7 +370,7 @@ const SignUp = () => {
                     </div>
                 </div>
 
-                                {/* Location Filters */}
+                {/* Location Filters */}
                 <div className="filters-section">
                     <h3 className="section-title">🗺️ Location Details</h3>
                     
@@ -469,30 +482,33 @@ const SignUp = () => {
                     </div>
                 </div>
 
-                                <div className="form-group">
-                    <label htmlFor="password">🔒 Password</label>
-                    <input 
-                        type="password" 
-                        id="password"
-                        name="password" 
-                        placeholder="Create a strong password" 
-                        value={formData.password} 
-                        onChange={handleChange} 
-                        required 
-                    />
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="confirmPassword">🔒 Confirm Password</label>
-                    <input 
-                        type="password" 
-                        id="confirmPassword"
-                        name="confirmPassword" 
-                        placeholder="Re-enter your password" 
-                        value={formData.confirmPassword} 
-                        onChange={handleChange} 
-                        required 
-                    />
+                {/* Password fields side by side */}
+                <div className="filter-row">
+                    <div className="form-group">
+                        <label htmlFor="password">🔒 Password</label>
+                        <input 
+                            type="password" 
+                            id="password"
+                            name="password" 
+                            placeholder="Create a strong password" 
+                            value={formData.password} 
+                            onChange={handleChange} 
+                            required 
+                        />
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="confirmPassword">🔒 Confirm Password</label>
+                        <input 
+                            type="password" 
+                            id="confirmPassword"
+                            name="confirmPassword" 
+                            placeholder="Re-enter your password" 
+                            value={formData.confirmPassword} 
+                            onChange={handleChange} 
+                            required 
+                        />
+                    </div>
                 </div>
                 
                 {error && <div className="error-message">⚠️ {error}</div>}
