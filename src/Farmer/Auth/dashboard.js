@@ -1,0 +1,1202 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './Styling/auth.css';
+import './Styling/dashboard.css';
+
+const FarmerDashboard = () => {
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState('overview');
+    const [loading, setLoading] = useState(true);
+    const [farmerData, setFarmerData] = useState(null);
+    const [products, setProducts] = useState([]);
+    const [orders, setOrders] = useState([]);
+    const [stats, setStats] = useState({
+        totalProducts: 0,
+        activeListings: 0,
+        totalOrders: 0,
+        pendingOrders: 0,
+        totalRevenue: 0,
+        reputationScore: 0
+    });
+
+    // Modal states
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [showInventoryModal, setShowInventoryModal] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [showNotification, setShowNotification] = useState(false);
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationType, setNotificationType] = useState('success'); // success, error, info
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Product form state
+    const [productForm, setProductForm] = useState({
+        productName: '',
+        category: '',
+        quantity: '',
+        unit: 'kg',
+        pricePerUnit: '',
+        description: '',
+        isOrganic: false,
+        harvestDate: '',
+        expiryDate: ''
+    });
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
+
+    const fetchDashboardData = async () => {
+        try {
+            // Simulated data - replace with actual API calls
+            const mockFarmerData = {
+                firstName: 'John',
+                lastName: 'Doe',
+                farmName: 'Green Valley Farm',
+                farmType: 'Vegetables',
+                farmSize: 'Medium Scale',
+                location: 'Nairobi, Kenya',
+                reputationScore: 4.5,
+                isVerified: true,
+                profilePhoto: null
+            };
+
+            const mockStats = {
+                totalProducts: 12,
+                activeListings: 8,
+                totalOrders: 45,
+                pendingOrders: 3,
+                totalRevenue: 125000,
+                reputationScore: 4.5
+            };
+
+            const mockProducts = [
+                {
+                    id: 1,
+                    name: 'Fresh Tomatoes',
+                    category: 'Vegetables',
+                    quantity: 500,
+                    unit: 'kg',
+                    pricePerUnit: 80,
+                    status: 'available',
+                    harvestDate: '2025-10-01'
+                },
+                {
+                    id: 2,
+                    name: 'Organic Cabbage',
+                    category: 'Vegetables',
+                    quantity: 300,
+                    unit: 'kg',
+                    pricePerUnit: 45,
+                    status: 'available',
+                    harvestDate: '2025-10-05'
+                }
+            ];
+
+            const mockOrders = [
+                {
+                    id: 1,
+                    buyer: 'Jane Smith',
+                    product: 'Fresh Tomatoes',
+                    quantity: 50,
+                    amount: 4000,
+                    status: 'pending',
+                    date: '2025-10-10'
+                },
+                {
+                    id: 2,
+                    buyer: 'Mike Johnson',
+                    product: 'Organic Cabbage',
+                    quantity: 30,
+                    amount: 1350,
+                    status: 'confirmed',
+                    date: '2025-10-09'
+                }
+            ];
+
+            setFarmerData(mockFarmerData);
+            setStats(mockStats);
+            setProducts(mockProducts);
+            setOrders(mockOrders);
+            setLoading(false);
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            setLoading(false);
+        }
+    };
+
+    const showNotificationMessage = (message, type = 'success') => {
+        setNotificationMessage(message);
+        setNotificationType(type);
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 4000);
+    };
+
+    const handleLogout = () => {
+        if (window.confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userData');
+            showNotificationMessage('Logged out successfully', 'info');
+            setTimeout(() => navigate('/loginF'), 1000);
+        }
+    };
+
+    const handleProductFormChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setProductForm(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const handleAddProduct = async (e) => {
+        e.preventDefault();
+        try {
+            // Add API call to create product
+            console.log('Adding product:', productForm);
+            showNotificationMessage(`${productForm.productName} added successfully! 🎉`, 'success');
+            // Reset form and close modal
+            setProductForm({
+                productName: '',
+                category: '',
+                quantity: '',
+                unit: 'kg',
+                pricePerUnit: '',
+                description: '',
+                isOrganic: false,
+                harvestDate: '',
+                expiryDate: ''
+            });
+            setShowProductModal(false);
+            fetchDashboardData();
+        } catch (error) {
+            console.error('Error adding product:', error);
+            showNotificationMessage('Failed to add product. Please try again.', 'error');
+        }
+    };
+
+    const handleUpdateInventory = async (productId, newQuantity) => {
+        try {
+            // Add API call to update inventory
+            console.log('Updating inventory:', productId, newQuantity);
+            showNotificationMessage('Inventory updated successfully! 📦', 'success');
+            fetchDashboardData();
+        } catch (error) {
+            console.error('Error updating inventory:', error);
+            showNotificationMessage('Failed to update inventory.', 'error');
+        }
+    };
+
+    const handleOrderAction = async (orderId, action) => {
+        const actionText = action === 'confirm' ? 'confirmed' : 'rejected';
+        if (window.confirm(`Are you sure you want to ${action} this order?`)) {
+            try {
+                // Add API call to update order status
+                console.log('Order action:', orderId, action);
+                showNotificationMessage(`Order #${orderId} ${actionText} successfully! ✓`, 'success');
+                fetchDashboardData();
+            } catch (error) {
+                console.error('Error updating order:', error);
+                showNotificationMessage(`Failed to ${action} order.`, 'error');
+            }
+        }
+    };
+
+    const handleDeleteProduct = async (productId, productName) => {
+        if (window.confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+            try {
+                console.log('Deleting product:', productId);
+                showNotificationMessage(`${productName} deleted successfully!`, 'info');
+                fetchDashboardData();
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                showNotificationMessage('Failed to delete product.', 'error');
+            }
+        }
+    };
+
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            product.category.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
+        return matchesSearch && matchesCategory;
+    });
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setIsMobileMenuOpen(false); // Close mobile menu when tab changes
+    };
+
+    if (loading) {
+        return (
+            <div className="dashboard-loading">
+                <div className="spinner"></div>
+                <p>Loading dashboard...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="farmer-dashboard">
+            {/* Notification Toast */}
+            {showNotification && (
+                <div className={`notification-toast notification-${notificationType}`}>
+                    <span className="notification-icon">
+                        {notificationType === 'success' && '✓'}
+                        {notificationType === 'error' && '✕'}
+                        {notificationType === 'info' && 'ℹ'}
+                    </span>
+                    <span className="notification-text">{notificationMessage}</span>
+                    <button 
+                        className="notification-close"
+                        onClick={() => setShowNotification(false)}
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+
+            {/* Header */}
+            <header className="dashboard-header">
+                <div className="header-left">
+                    <h1 className="dashboard-title">🌾 KilimoSmart</h1>
+                    <p className="dashboard-subtitle">Farmer Dashboard</p>
+                </div>
+                <div className="header-right">
+                    <div className="farmer-profile">
+                        <div className="profile-info">
+                            <span className="farmer-name">{farmerData?.firstName} {farmerData?.lastName}</span>
+                            <span className="farm-name">{farmerData?.farmName}</span>
+                            {farmerData?.isVerified && (
+                                <span className="verified-badge">✓ Verified</span>
+                            )}
+                        </div>
+                        <div className="profile-avatar">
+                            {farmerData?.profilePhoto ? (
+                                <img src={farmerData.profilePhoto} alt="Profile" />
+                            ) : (
+                                <div className="avatar-placeholder">
+                                    {farmerData?.firstName?.charAt(0)}{farmerData?.lastName?.charAt(0)}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <button className="logout-btn" onClick={handleLogout}>
+                        <span>🚪</span> Logout
+                    </button>
+                </div>
+            </header>
+
+            {/* Navigation Tabs */}
+            <nav className="dashboard-nav">
+                {/* Mobile Menu Toggle */}
+                <button 
+                    className="mobile-menu-toggle"
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    aria-label="Toggle navigation menu"
+                    title="Toggle menu"
+                >
+                    <span className="hamburger-icon">
+                        <span className={`line ${isMobileMenuOpen ? 'open' : ''}`}></span>
+                        <span className={`line ${isMobileMenuOpen ? 'open' : ''}`}></span>
+                        <span className={`line ${isMobileMenuOpen ? 'open' : ''}`}></span>
+                    </span>
+                    <span className="menu-text">Menu</span>
+                </button>
+
+                {/* Navigation Menu */}
+                <div className={`nav-menu ${isMobileMenuOpen ? 'open' : ''}`}>
+                    {/* Mobile Menu Header */}
+                    <div className="mobile-menu-header">
+                        <h3>Navigation</h3>
+                        <button 
+                            className="mobile-menu-close"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            aria-label="Close menu"
+                        >
+                            ×
+                        </button>
+                    </div>
+
+                    {/* Navigation Buttons */}
+                    <button 
+                        className={`nav-btn ${activeTab === 'overview' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('overview')}
+                        title="View dashboard statistics and overview"
+                    >
+                        <span className="nav-icon">📊</span>
+                        <span className="nav-label">Overview</span>
+                    </button>
+                    <button 
+                        className={`nav-btn ${activeTab === 'products' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('products')}
+                        title="Manage your agricultural products"
+                    >
+                        <span className="nav-icon">🌽</span>
+                        <span className="nav-label">Products</span>
+                        {stats.activeListings > 0 && (
+                            <span className="nav-badge">{stats.activeListings}</span>
+                        )}
+                    </button>
+                    <button 
+                        className={`nav-btn ${activeTab === 'inventory' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('inventory')}
+                        title="Track and update your inventory"
+                    >
+                        <span className="nav-icon">📦</span>
+                        <span className="nav-label">Inventory</span>
+                    </button>
+                    <button 
+                        className={`nav-btn ${activeTab === 'orders' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('orders')}
+                        title="Manage customer orders"
+                    >
+                        <span className="nav-icon">📋</span>
+                        <span className="nav-label">Orders</span>
+                        {stats.pendingOrders > 0 && (
+                            <span className="nav-badge pending">{stats.pendingOrders}</span>
+                        )}
+                    </button>
+                    <button 
+                        className={`nav-btn ${activeTab === 'payments' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('payments')}
+                        title="View payment history and earnings"
+                    >
+                        <span className="nav-icon">💰</span>
+                        <span className="nav-label">Payments</span>
+                    </button>
+                    <button 
+                        className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('profile')}
+                        title="Update your farm profile"
+                    >
+                        <span className="nav-icon">👤</span>
+                        <span className="nav-label">Profile</span>
+                    </button>
+                </div>
+
+                {/* Mobile Menu Overlay */}
+                {isMobileMenuOpen && (
+                    <div 
+                        className="mobile-menu-overlay"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    ></div>
+                )}
+            </nav>
+
+            {/* Main Content */}
+            <main className="dashboard-content">
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                    <div className="overview-section">
+                        <div className="section-header-with-greeting">
+                            <div>
+                                <h2 className="section-title">Dashboard Overview</h2>
+                                <p className="greeting-text">
+                                    Welcome back, {farmerData?.firstName}! 👋 
+                                    <span className="greeting-date">
+                                        {new Date().toLocaleDateString('en-US', { 
+                                            weekday: 'long', 
+                                            year: 'numeric', 
+                                            month: 'long', 
+                                            day: 'numeric' 
+                                        })}
+                                    </span>
+                                </p>
+                            </div>
+                            <button 
+                                className="btn-quick-action"
+                                onClick={() => setActiveTab('products')}
+                                title="Quick add product"
+                            >
+                                <span>⚡</span> Quick Actions
+                            </button>
+                        </div>
+                        
+                        {/* Stats Cards */}
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-icon">🌽</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{stats.totalProducts}</span>
+                                    <span className="stat-label">Total Products</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">✅</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{stats.activeListings}</span>
+                                    <span className="stat-label">Active Listings</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">📋</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{stats.totalOrders}</span>
+                                    <span className="stat-label">Total Orders</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">⏳</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{stats.pendingOrders}</span>
+                                    <span className="stat-label">Pending Orders</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">💰</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">KSh {stats.totalRevenue.toLocaleString()}</span>
+                                    <span className="stat-label">Total Revenue</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon">⭐</div>
+                                <div className="stat-info">
+                                    <span className="stat-value">{stats.reputationScore}/5.0</span>
+                                    <span className="stat-label">Reputation Score</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Recent Orders */}
+                        <div className="recent-section">
+                            <h3 className="subsection-title">Recent Orders</h3>
+                            <div className="orders-list">
+                                {orders.slice(0, 5).map(order => (
+                                    <div key={order.id} className="order-item">
+                                        <div className="order-info">
+                                            <span className="order-product">{order.product}</span>
+                                            <span className="order-buyer">Buyer: {order.buyer}</span>
+                                            <span className="order-details">
+                                                {order.quantity} units • KSh {order.amount.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <span className={`order-status status-${order.status}`}>
+                                            {order.status}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Products Tab */}
+                {activeTab === 'products' && (
+                    <div className="products-section">
+                        <div className="section-header">
+                            <h2 className="section-title">My Products</h2>
+                            <button 
+                                className="btn-primary"
+                                onClick={() => setShowProductModal(true)}
+                                title="List a new product for sale"
+                            >
+                                <span>+</span> Add New Product
+                            </button>
+                        </div>
+
+                        {/* Search and Filter Bar */}
+                        <div className="filter-bar">
+                            <div className="search-box">
+                                <span className="search-icon">🔍</span>
+                                <input
+                                    type="text"
+                                    placeholder="Search products by name or category..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="search-input"
+                                />
+                                {searchQuery && (
+                                    <button 
+                                        className="clear-search"
+                                        onClick={() => setSearchQuery('')}
+                                        title="Clear search"
+                                    >
+                                        ×
+                                    </button>
+                                )}
+                            </div>
+                            <div className="filter-dropdown">
+                                <label htmlFor="category-filter">Category:</label>
+                                <select 
+                                    id="category-filter"
+                                    value={filterCategory}
+                                    onChange={(e) => setFilterCategory(e.target.value)}
+                                    className="filter-select"
+                                >
+                                    <option value="all">All Categories</option>
+                                    <option value="Cereals">Cereals</option>
+                                    <option value="Legumes">Legumes</option>
+                                    <option value="Vegetables">Vegetables</option>
+                                    <option value="Fruits">Fruits</option>
+                                    <option value="Root Crops">Root Crops</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {filteredProducts.length === 0 ? (
+                            <div className="empty-state">
+                                <div className="empty-icon">📦</div>
+                                <h3>No products found</h3>
+                                <p>
+                                    {searchQuery || filterCategory !== 'all' 
+                                        ? 'Try adjusting your search or filter criteria.'
+                                        : 'Start by adding your first product to showcase your farm produce!'}
+                                </p>
+                                {!searchQuery && filterCategory === 'all' && (
+                                    <button 
+                                        className="btn-primary"
+                                        onClick={() => setShowProductModal(true)}
+                                    >
+                                        + Add Your First Product
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="results-count">
+                                    Showing {filteredProducts.length} of {products.length} products
+                                </div>
+                                        <div className="products-grid">
+                                    {filteredProducts.map(product => (
+                                        <div key={product.id} className="product-card">
+                                            <div className="product-image-placeholder">
+                                                <span className="product-icon">🌾</span>
+                                                <div className="product-overlay">
+                                                    <button 
+                                                        className="overlay-btn"
+                                                        title="Upload product photo"
+                                                        onClick={() => showNotificationMessage('Photo upload coming soon!', 'info')}
+                                                    >
+                                                        📸 Add Photo
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="product-details">
+                                                <div className="product-header">
+                                                    <h3 className="product-name">{product.name}</h3>
+                                                    <span className={`product-status status-${product.status}`}>
+                                                        {product.status}
+                                                    </span>
+                                                </div>
+                                                <p className="product-category">
+                                                    <span className="category-icon">🏷️</span>
+                                                    {product.category}
+                                                </p>
+                                                <div className="product-stats">
+                                                    <div className="stat-item">
+                                                        <span className="stat-icon">📦</span>
+                                                        <span className="stat-text">
+                                                            {product.quantity} {product.unit}
+                                                        </span>
+                                                    </div>
+                                                    <div className="stat-item">
+                                                        <span className="stat-icon">💰</span>
+                                                        <span className="stat-text">
+                                                            KSh {product.pricePerUnit}/{product.unit}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="product-actions">
+                                                    <button 
+                                                        className="btn-secondary"
+                                                        title="Edit product details"
+                                                        onClick={() => {
+                                                            setSelectedProduct(product);
+                                                            setProductForm({
+                                                                productName: product.name,
+                                                                category: product.category,
+                                                                quantity: product.quantity,
+                                                                unit: product.unit,
+                                                                pricePerUnit: product.pricePerUnit,
+                                                                description: '',
+                                                                isOrganic: false,
+                                                                harvestDate: product.harvestDate,
+                                                                expiryDate: ''
+                                                            });
+                                                            setShowProductModal(true);
+                                                        }}
+                                                    >
+                                                        ✏️ Edit
+                                                    </button>
+                                                    <button 
+                                                        className="btn-danger"
+                                                        title="Delete this product"
+                                                        onClick={() => handleDeleteProduct(product.id, product.name)}
+                                                    >
+                                                        🗑️ Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* Inventory Tab */}
+                {activeTab === 'inventory' && (
+                    <div className="inventory-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Inventory Management</h2>
+                            <div className="header-actions">
+                                <button 
+                                    className="btn-secondary"
+                                    onClick={() => showNotificationMessage('Export feature coming soon!', 'info')}
+                                    title="Export inventory to CSV"
+                                >
+                                    📥 Export
+                                </button>
+                                <button 
+                                    className="btn-primary"
+                                    onClick={() => setShowInventoryModal(true)}
+                                    title="Bulk update inventory"
+                                >
+                                    📊 Bulk Update
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Inventory Summary */}
+                        <div className="inventory-summary">
+                            <div className="summary-item">
+                                <span className="summary-label">Total Items:</span>
+                                <span className="summary-value">{products.length}</span>
+                            </div>
+                            <div className="summary-item">
+                                <span className="summary-label">In Stock:</span>
+                                <span className="summary-value success">
+                                    {products.filter(p => p.quantity >= 100).length}
+                                </span>
+                            </div>
+                            <div className="summary-item">
+                                <span className="summary-label">Low Stock:</span>
+                                <span className="summary-value warning">
+                                    {products.filter(p => p.quantity < 100 && p.quantity > 0).length}
+                                </span>
+                            </div>
+                            <div className="summary-item">
+                                <span className="summary-label">Out of Stock:</span>
+                                <span className="summary-value danger">
+                                    {products.filter(p => p.quantity === 0).length}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="inventory-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Category</th>
+                                        <th>Available Quantity</th>
+                                        <th>Unit</th>
+                                        <th>Price/Unit</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {products.map(product => (
+                                        <tr key={product.id} className={product.quantity === 0 ? 'out-of-stock-row' : ''}>
+                                            <td>
+                                                <div className="product-cell">
+                                                    <span className="product-icon-sm">🌾</span>
+                                                    <span>{product.name}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className="category-tag">{product.category}</span>
+                                            </td>
+                                            <td>
+                                                <div className="quantity-cell">
+                                                    <span className={
+                                                        product.quantity === 0 ? 'quantity-badge out-of-stock' :
+                                                        product.quantity < 100 ? 'quantity-badge low-stock' : 
+                                                        'quantity-badge in-stock'
+                                                    }>
+                                                        {product.quantity}
+                                                    </span>
+                                                    {product.quantity < 100 && product.quantity > 0 && (
+                                                        <span className="stock-warning" title="Low stock alert">⚠️</span>
+                                                    )}
+                                                    {product.quantity === 0 && (
+                                                        <span className="stock-warning" title="Out of stock">🚫</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td>{product.unit}</td>
+                                            <td className="price-cell">KSh {product.pricePerUnit.toLocaleString()}</td>
+                                            <td>
+                                                <span className={`status-badge status-${product.status}`}>
+                                                    {product.status}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="action-buttons">
+                                                    <button 
+                                                        className="btn-icon"
+                                                        title="Update quantity"
+                                                        onClick={() => {
+                                                            const newQty = prompt(`Update quantity for ${product.name} (current: ${product.quantity} ${product.unit}):`, product.quantity);
+                                                            if (newQty !== null && !isNaN(newQty) && Number(newQty) >= 0) {
+                                                                handleUpdateInventory(product.id, Number(newQty));
+                                                            }
+                                                        }}
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                    <button 
+                                                        className="btn-icon"
+                                                        title="View details"
+                                                        onClick={() => showNotificationMessage(`Viewing details for ${product.name}`, 'info')}
+                                                    >
+                                                        �️
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* Orders Tab */}
+                {activeTab === 'orders' && (
+                    <div className="orders-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Order Management</h2>
+                            <div className="order-filters">
+                                <button className="filter-chip active">All Orders</button>
+                                <button className="filter-chip">Pending ({stats.pendingOrders})</button>
+                                <button className="filter-chip">Confirmed</button>
+                                <button className="filter-chip">Completed</button>
+                            </div>
+                        </div>
+
+                        {orders.length === 0 ? (
+                            <div className="empty-state">
+                                <div className="empty-icon">📋</div>
+                                <h3>No orders yet</h3>
+                                <p>Orders from buyers will appear here. Make sure your products are well-listed and visible!</p>
+                            </div>
+                        ) : (
+                            <div className="orders-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Buyer</th>
+                                        <th>Product</th>
+                                        <th>Quantity</th>
+                                        <th>Amount</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {orders.map(order => (
+                                        <tr key={order.id} className={order.status === 'pending' ? 'pending-order-row' : ''}>
+                                            <td>
+                                                <span className="order-id">#{order.id.toString().padStart(4, '0')}</span>
+                                            </td>
+                                            <td>
+                                                <div className="buyer-cell">
+                                                    <span className="buyer-icon">👤</span>
+                                                    <span>{order.buyer}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <strong>{order.product}</strong>
+                                            </td>
+                                            <td>
+                                                <span className="quantity-text">{order.quantity} units</span>
+                                            </td>
+                                            <td className="amount-cell">
+                                                <strong>KSh {order.amount.toLocaleString()}</strong>
+                                            </td>
+                                            <td>
+                                                <span className="date-text">{order.date}</span>
+                                            </td>
+                                            <td>
+                                                <span className={`status-badge status-${order.status}`}>
+                                                    {order.status === 'pending' && '⏳ '}
+                                                    {order.status === 'confirmed' && '✓ '}
+                                                    {order.status === 'completed' && '✓✓ '}
+                                                    {order.status}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {order.status === 'pending' ? (
+                                                    <div className="action-buttons">
+                                                        <button 
+                                                            className="btn-success"
+                                                            onClick={() => handleOrderAction(order.id, 'confirm')}
+                                                            title="Accept this order"
+                                                        >
+                                                            ✓ Accept
+                                                        </button>
+                                                        <button 
+                                                            className="btn-danger"
+                                                            onClick={() => handleOrderAction(order.id, 'reject')}
+                                                            title="Reject this order"
+                                                        >
+                                                            ✗ Reject
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button 
+                                                        className="btn-icon"
+                                                        title="View order details"
+                                                        onClick={() => showNotificationMessage('Order details coming soon!', 'info')}
+                                                    >
+                                                        👁️ View
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Payments Tab */}
+                {activeTab === 'payments' && (
+                    <div className="payments-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Payment History</h2>
+                            <button 
+                                className="btn-secondary"
+                                onClick={() => showNotificationMessage('Download report feature coming soon!', 'info')}
+                                title="Download payment report"
+                            >
+                                📊 Download Report
+                            </button>
+                        </div>
+
+                        <div className="payment-summary">
+                            <div className="summary-card earnings-card">
+                                <div className="card-icon">💰</div>
+                                <div className="card-content">
+                                    <h3>Total Earnings</h3>
+                                    <p className="amount">KSh {stats.totalRevenue.toLocaleString()}</p>
+                                    <span className="trend positive">↑ 12% from last month</span>
+                                </div>
+                            </div>
+                            <div className="summary-card pending-card">
+                                <div className="card-icon">⏳</div>
+                                <div className="card-content">
+                                    <h3>Pending Payments</h3>
+                                    <p className="amount">KSh 15,000</p>
+                                    <span className="trend neutral">3 transactions pending</span>
+                                </div>
+                            </div>
+                            <div className="summary-card transactions-card">
+                                <div className="card-icon">📱</div>
+                                <div className="card-content">
+                                    <h3>M-Pesa Transactions</h3>
+                                    <p className="amount">45</p>
+                                    <span className="trend positive">This month</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="payments-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Transaction ID</th>
+                                        <th>Order ID</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>TXN-001</td>
+                                        <td>#001</td>
+                                        <td>KSh 4,000</td>
+                                        <td>M-Pesa</td>
+                                        <td>2025-10-10</td>
+                                        <td><span className="status-badge status-completed">Completed</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>TXN-002</td>
+                                        <td>#002</td>
+                                        <td>KSh 1,350</td>
+                                        <td>M-Pesa</td>
+                                        <td>2025-10-09</td>
+                                        <td><span className="status-badge status-pending">Pending</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* Profile Tab */}
+                {activeTab === 'profile' && (
+                    <div className="profile-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Farm Profile</h2>
+                            <button 
+                                className="btn-primary"
+                                onClick={() => showNotificationMessage('Edit profile feature coming soon!', 'info')}
+                                title="Edit your profile"
+                            >
+                                ✏️ Edit Profile
+                            </button>
+                        </div>
+
+                        <div className="profile-content">
+                            <div className="profile-card">
+                                <div className="profile-header">
+                                    <div className="profile-avatar-wrapper">
+                                        <div className="profile-avatar-large">
+                                            {farmerData?.profilePhoto ? (
+                                                <img src={farmerData.profilePhoto} alt="Profile" />
+                                            ) : (
+                                                <div className="avatar-placeholder-large">
+                                                    {farmerData?.firstName?.charAt(0)}{farmerData?.lastName?.charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button 
+                                            className="avatar-upload-btn"
+                                            onClick={() => showNotificationMessage('Photo upload feature coming soon!', 'info')}
+                                            title="Upload new profile photo"
+                                        >
+                                            📸
+                                        </button>
+                                    </div>
+                                    <div className="profile-summary">
+                                        <h3>{farmerData?.firstName} {farmerData?.lastName}</h3>
+                                        <p className="farm-name-large">🌾 {farmerData?.farmName}</p>
+                                        <div className="profile-rating">
+                                            <span className="stars">⭐⭐⭐⭐⭐</span>
+                                            <span className="rating-text">{farmerData?.reputationScore}/5.0 ({stats.totalOrders} orders)</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="profile-info-grid">
+                                    <div className="info-item">
+                                        <label>Full Name</label>
+                                        <p>{farmerData?.firstName} {farmerData?.lastName}</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Farm Name</label>
+                                        <p>{farmerData?.farmName}</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Farm Type</label>
+                                        <p>{farmerData?.farmType}</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Farm Size</label>
+                                        <p>{farmerData?.farmSize}</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Location</label>
+                                        <p>{farmerData?.location}</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Reputation Score</label>
+                                        <p>⭐ {farmerData?.reputationScore}/5.0</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Verification Status</label>
+                                        <p>
+                                            {farmerData?.isVerified ? (
+                                                <span className="verified-badge">✓ Verified</span>
+                                            ) : (
+                                                <span className="unverified-badge">✗ Not Verified</span>
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="profile-actions">
+                                    <button 
+                                        className="btn-primary"
+                                        onClick={() => showNotificationMessage('Edit profile feature coming soon!', 'info')}
+                                    >
+                                        ✏️ Edit Profile
+                                    </button>
+                                    <button 
+                                        className="btn-secondary"
+                                        onClick={() => showNotificationMessage('Location verification feature coming soon!', 'info')}
+                                    >
+                                        📍 Verify Farm Location
+                                    </button>
+                                    <button 
+                                        className="btn-secondary"
+                                        onClick={() => showNotificationMessage('Settings page coming soon!', 'info')}
+                                    >
+                                        ⚙️ Account Settings
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </main>
+
+            {/* Add Product Modal */}
+            {showProductModal && (
+                <div className="modal-overlay" onClick={() => setShowProductModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>
+                                {selectedProduct ? '✏️ Edit Product' : '+ Add New Product'}
+                            </h3>
+                            <button 
+                                className="modal-close"
+                                onClick={() => {
+                                    setShowProductModal(false);
+                                    setSelectedProduct(null);
+                                }}
+                                title="Close modal"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddProduct} className="product-form">
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Product Name *</label>
+                                    <input
+                                        type="text"
+                                        name="productName"
+                                        value={productForm.productName}
+                                        onChange={handleProductFormChange}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Category *</label>
+                                    <select
+                                        name="category"
+                                        value={productForm.category}
+                                        onChange={handleProductFormChange}
+                                        required
+                                    >
+                                        <option value="">Select Category</option>
+                                        <option value="Cereals">Cereals</option>
+                                        <option value="Legumes">Legumes</option>
+                                        <option value="Vegetables">Vegetables</option>
+                                        <option value="Fruits">Fruits</option>
+                                        <option value="Root Crops">Root Crops</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Quantity *</label>
+                                    <input
+                                        type="number"
+                                        name="quantity"
+                                        value={productForm.quantity}
+                                        onChange={handleProductFormChange}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Unit *</label>
+                                    <select
+                                        name="unit"
+                                        value={productForm.unit}
+                                        onChange={handleProductFormChange}
+                                        required
+                                    >
+                                        <option value="kg">Kilograms (kg)</option>
+                                        <option value="bags">Bags</option>
+                                        <option value="pieces">Pieces</option>
+                                        <option value="crates">Crates</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label>Price per Unit (KSh) *</label>
+                                    <input
+                                        type="number"
+                                        name="pricePerUnit"
+                                        value={productForm.pricePerUnit}
+                                        onChange={handleProductFormChange}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Harvest Date</label>
+                                    <input
+                                        type="date"
+                                        name="harvestDate"
+                                        value={productForm.harvestDate}
+                                        onChange={handleProductFormChange}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Description</label>
+                                <textarea
+                                    name="description"
+                                    value={productForm.description}
+                                    onChange={handleProductFormChange}
+                                    rows="3"
+                                />
+                            </div>
+
+                            <div className="form-group checkbox-group">
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        name="isOrganic"
+                                        checked={productForm.isOrganic}
+                                        onChange={handleProductFormChange}
+                                    />
+                                    <span>Organic Product</span>
+                                </label>
+                            </div>
+
+                            <div className="modal-actions">
+                                <button 
+                                    type="button" 
+                                    className="btn-secondary"
+                                    onClick={() => {
+                                        setShowProductModal(false);
+                                        setSelectedProduct(null);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" className="btn-primary">
+                                    {selectedProduct ? '💾 Update Product' : '+ Add Product'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default FarmerDashboard;

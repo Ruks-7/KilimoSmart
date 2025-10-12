@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-// import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import './Styling/auth.css';
 import OTPInput from './OTPInput';
 
 const FarmerLogin = () => {
-//   const navigate = useNavigate();
+  const navigate = useNavigate();
 const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -175,7 +175,7 @@ const [formData, setFormData] = useState({
       alert('Login successful! OTP verified.');
       
       // Redirect to farmer dashboard
-      // navigate('/farmer/dashboard');
+      navigate('/farmer/dashboard');
       
     } catch (error) {
       console.error('❌ OTP verification error:', error.response?.data || error.message);
