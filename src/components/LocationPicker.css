@@ -1,0 +1,263 @@
+/* LocationPicker Component Styles */
+
+.location-picker {
+  margin: 20px 0;
+}
+
+.location-error {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  border-left: 4px solid #c62828;
+  white-space: pre-line;
+  font-size: 0.9rem;
+}
+
+.location-actions {
+  margin-bottom: 20px;
+}
+
+.btn-get-location {
+  width: 100%;
+  padding: 12px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.btn-get-location:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-get-location:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-get-location.active {
+  background-color: #2196F3;
+}
+
+.btn-get-location.active:hover {
+  background-color: #1976D2;
+}
+
+.location-tips {
+  background-color: #f0f8ff;
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 10px;
+  border: 1px solid #4CAF50;
+  font-size: 0.9rem;
+}
+
+.location-tips strong {
+  color: #2c3e50;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.location-tips ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.location-tips li {
+  margin: 5px 0;
+  color: #555;
+}
+
+.location-info {
+  background-color: #e8f5e9;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  border: 1px solid #4CAF50;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+  font-size: 0.9rem;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #555;
+}
+
+.info-value {
+  color: #2c3e50;
+  font-family: monospace;
+}
+
+.location-verified {
+  background-color: #4CAF50;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.location-search {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.btn-clear-search {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 5px 10px;
+}
+
+.btn-clear-search:hover {
+  color: #666;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.search-result-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background-color: #f5f5f5;
+}
+
+.search-loading {
+  text-align: center;
+  padding: 10px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.location-map {
+  margin: 15px 0;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.map-help {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 8px 12px;
+  margin: 10px 0 0 0;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  border: 1px solid #ffeaa7;
+}
+
+.location-admin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.location-admin .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.location-admin label {
+  font-weight: 500;
+  margin-bottom: 5px;
+  color: #2c3e50;
+}
+
+.location-admin input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.location-admin input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.location-address {
+  background-color: #f5f5f5;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.location-address strong {
+  color: #2c3e50;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .location-admin {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-row {
+    flex-direction: column;
+    gap: 5px;
+  }
+}

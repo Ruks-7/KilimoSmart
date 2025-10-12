@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 // import { useNavigate } from 'react-router-dom';
 import './Styling/auth.css';
+import OTPInput from './OTPInput';
 
 const FarmerLogin = () => {
 //   const navigate = useNavigate();
@@ -13,6 +15,11 @@ const [formData, setFormData] = useState({
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [generalError, setGeneralError] = useState('');
+  
+  // OTP verification state
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   useEffect(() => {
     document.body.classList.add('auth-page');
@@ -102,23 +109,96 @@ const [formData, setFormData] = useState({
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Step 1: Verify email and password with backend
+      const response = await axios.post('http://localhost:5000/api/auth/farmer/verify-credentials', {
+        email: formData.email,
+        password: formData.password
+      });
 
-      // API call to authenticate
-      //we'll simulate a successful login
-      console.log('Login data:', formData);
-      console.log('Remember me:', rememberMe);
+      console.log('✅ Credentials verified:', response.data);
 
-      // Redirect to farmer dashboard or home page
-      // navigate('/farmer/dashboard');
+      // Step 2: Send OTP to email
+      await sendOTP();
       
-      alert('Login successful! (This is a demo)');
+      // Show OTP input screen
+      setShowOTP(true);
+      
     } catch (error) {
-      setGeneralError('Login failed. Please check your credentials and try again.');
+      console.error('❌ Login error:', error.response?.data || error.message);
+      setGeneralError(error.response?.data?.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const sendOTP = async () => {
+    try {
+      // API call to send OTP
+      const response = await axios.post('http://localhost:5000/api/auth/send-otp', {
+        email: formData.email,
+        purpose: 'login'
+      });
+
+      console.log('✅ OTP sent successfully:', response.data);
+      return response.data;
+      
+    } catch (error) {
+      console.error('❌ OTP sending error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to send OTP. Please try again.');
+    }
+  };
+
+  const handleOTPComplete = async (otpCode) => {
+    setOtpError('');
+    setOtpLoading(true);
+
+    try {
+      // Verify OTP with backend
+      const response = await axios.post('http://localhost:5000/api/auth/verify-otp', {
+        email: formData.email,
+        otp: otpCode,
+        purpose: 'login'
+      });
+
+      console.log('✅ OTP verified successfully:', response.data);
+      console.log('Remember me:', rememberMe);
+      
+      // Store token
+      if (rememberMe) {
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('userData', JSON.stringify(response.data.user));
+      } else {
+        sessionStorage.setItem('authToken', response.data.token);
+        sessionStorage.setItem('userData', JSON.stringify(response.data.user));
+      }
+
+      alert('Login successful! OTP verified.');
+      
+      // Redirect to farmer dashboard
+      // navigate('/farmer/dashboard');
+      
+    } catch (error) {
+      console.error('❌ OTP verification error:', error.response?.data || error.message);
+      setOtpError(error.response?.data?.message || 'Invalid or expired OTP. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setOtpError('');
+    try {
+      await sendOTP();
+      // Show success message
+      console.log('OTP resent successfully');
+    } catch (error) {
+      setOtpError('Failed to resend OTP. Please try again.');
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowOTP(false);
+    setOtpError('');
   };
 
   const getInputClass = (fieldName) => {
@@ -137,113 +217,135 @@ const [formData, setFormData] = useState({
 
   return (
     <div className="auth-container login-container">
-      <div className="auth-header">
-        <h2>🌾 Farmer Login</h2>
-        <p>Welcome back! Sign in to manage your farm</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="auth-form login-form">
-        {generalError && (
-          <div className="error-message">
-            {generalError}
+      {!showOTP ? (
+        <>
+          <div className="auth-header">
+            <h2>🌾 Farmer Login</h2>
+            <p>Welcome back! Sign in to manage your farm</p>
           </div>
-        )}
 
-        <div className="form-group">
-          <label htmlFor="email">Email Address</label>
-          <div className="input-wrapper">
-            <span className="input-icon">📧</span>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={getInputClass('email')}
-              placeholder="farmer@example.com"
-              disabled={isLoading}
-              autoComplete="email"
-            />
-            {getValidationIcon('email')}
-          </div>
-          {errors.email && (
-            <div className="error-message">{errors.email}</div>
-          )}
-        </div>
+          <form onSubmit={handleSubmit} className="auth-form login-form">
+            {generalError && (
+              <div className="error-message">
+                {generalError}
+              </div>
+            )}
 
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
-          <div className="input-wrapper">
-            <span className="input-icon">🔒</span>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={getInputClass('password')}
-              placeholder="Enter your password"
-              disabled={isLoading}
-              autoComplete="current-password"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              disabled={isLoading}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
+              <div className="input-wrapper">
+                <span className="input-icon">📧</span>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={getInputClass('email')}
+                  placeholder="farmer@example.com"
+                  disabled={isLoading}
+                  autoComplete="email"
+                />
+                {getValidationIcon('email')}
+              </div>
+              {errors.email && (
+                <div className="error-message">{errors.email}</div>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="input-wrapper">
+                <span className="input-icon">🔒</span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={getInputClass('password')}
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+                {getValidationIcon('password')}
+              </div>
+              {errors.password && (
+                <div className="error-message">{errors.password}</div>
+              )}
+            </div>
+
+            <div className="form-options">
+              <label className="remember-me">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={isLoading}
+                />
+                Remember me
+              </label>
+              <a href="/forgot-password" className="forgot-password">
+                Forgot Password?
+              </a>
+            </div>
+
+            <button 
+              type="submit" 
+              className="auth-btn"
+              disabled={isLoading || Object.keys(errors).some(key => errors[key])}
             >
-              {showPassword ? '👁️' : '👁️‍🗨️'}
+              {isLoading ? (
+                <>
+                  <div className="loading-spinner"></div>
+                  <span>Verifying...</span>
+                </>
+              ) : (
+                <>
+                  <span>Continue</span>
+                  <span>→</span>
+                </>
+              )}
             </button>
-            {getValidationIcon('password')}
+
+            <div className="auth-nav-link">
+              <p>
+                Don't have an account?
+                <a href="/signupFarmer">Create Farmer Account</a>
+              </p>
+            </div>
+          </form>
+        </>
+      ) : (
+        <>
+          <div className="otp-back-btn">
+            <button onClick={handleBackToLogin} className="back-link">
+              ← Back to Login
+            </button>
           </div>
-          {errors.password && (
-            <div className="error-message">{errors.password}</div>
-          )}
-        </div>
-
-        <div className="form-options">
-          <label className="remember-me">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              disabled={isLoading}
-            />
-            Remember me
-          </label>
-          <a href="/forgot-password" className="forgot-password">
-            Forgot Password?
-          </a>
-        </div>
-
-        <button 
-          type="submit" 
-          className="auth-btn"
-          disabled={isLoading || Object.keys(errors).some(key => errors[key])}
-        >
-          {isLoading ? (
-            <>
-              <div className="loading-spinner"></div>
-              <span>Signing in...</span>
-            </>
-          ) : (
-            <>
-              <span>Sign In</span>
-              <span>→</span>
-            </>
-          )}
-        </button>
-
-        <div className="auth-nav-link">
-          <p>
-            Don't have an account?
-            <a href="/signupFarmer">Create Farmer Account</a>
-          </p>
-        </div>
-      </form>
+          
+          <OTPInput
+            length={6}
+            onComplete={handleOTPComplete}
+            onResend={handleResendOTP}
+            email={formData.email}
+            isLoading={otpLoading}
+            error={otpError}
+            purpose="login"
+          />
+        </>
+      )}
     </div>
   );
 };

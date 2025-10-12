@@ -425,8 +425,8 @@ router.post('/farmer/signup', async (req, res) => {
         [
           location.latitude,
           location.longitude,
-          location.county || null,
-          location.subcounty || null,
+          location.county && location.county.trim() ? location.county : 'Unknown', // Use detected county or fallback
+          location.subcounty && location.subcounty.trim() ? location.subcounty : null,
           location.addressDescription || null,
           location.geofenceRadius || 500,
         ]

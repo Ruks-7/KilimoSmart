@@ -2,44 +2,31 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Styling/auth.css';
-import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, useMapEvents, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-    iconUrl: require('leaflet/dist/images/marker-icon.png'),
-    shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-});
+import OTPInput from './OTPInput';
+import LocationPicker from '../../components/LocationPicker';
 
 const SignUp = () => {
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
+        nationalId: '',
         phoneNumber: '',
         email: '',
         password: '',
         confirmPassword: '',
-        location: null,
-        county: '',       
-        subcounty: '', 
+        location: null,  // Will be set by LocationPicker: {latitude, longitude, county, subcounty, address, accuracy, verified}
         farmType: '',
         farmSize: '',
         geofenceRadius: 500  // Default 500m
     });
     
     const [error, setError] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [mapCenter, setMapCenter] = useState([-0.0236, 37.9062]);
-    const [mapZoom, setMapZoom] = useState(6);
     
-    // Security: Current location tracking
-    const [currentLocation, setCurrentLocation] = useState(null);
-    const [isGettingLocation, setIsGettingLocation] = useState(false);
-    const [locationVerified, setLocationVerified] = useState(false);
+    // OTP verification state
+    const [showOTP, setShowOTP] = useState(false);
+    const [otpError, setOtpError] = useState('');
+    const [otpLoading, setOtpLoading] = useState(false);
+    const [pendingSignupData, setPendingSignupData] = useState(null);
     
     const navigate = useNavigate();
 
@@ -58,120 +45,13 @@ const SignUp = () => {
         'Commercial (Over 100 acres)'
     ];
 
-    // Calculate distance between two coordinates (Haversine formula)
-    const calculateDistance = (lat1, lon1, lat2, lon2) => {
-        const R = 6371e3; // Earth's radius in meters
-        const φ1 = lat1 * Math.PI / 180;
-        const φ2 = lat2 * Math.PI / 180;
-        const Δφ = (lat2 - lat1) * Math.PI / 180;
-        const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c; // Distance in meters
-    };
-
-    // Get user's current location
-    const getCurrentLocation = () => {
-        setIsGettingLocation(true);
-        setError('');
-
-        if (!navigator.geolocation) {
-            setError('Geolocation is not supported by your browser');
-            setIsGettingLocation(false);
-            return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude, accuracy } = position.coords;
-                
-                setCurrentLocation({
-                    lat: latitude,
-                    lng: longitude,
-                    accuracy: accuracy,
-                    timestamp: new Date().toISOString()
-                });
-                
-                // Center map on current location
-                setMapCenter([latitude, longitude]);
-                setMapZoom(16);
-
-                // AUTO-FILL FARM LOCATION with current location
-                setFormData(prev => ({
-                    ...prev,
-                    location: { lat: latitude, lng: longitude }
-                }));
-                
-                // Auto-verify since farm location = current location
-                setLocationVerified(true);
-                
-                fetchAddress(latitude, longitude);
-                setIsGettingLocation(false);
-                
-                // Show success message
-                setError('');
-            },
-            (error) => {
-                setIsGettingLocation(false);
-                switch(error.code) {
-                    case error.PERMISSION_DENIED:
-                        setError('Location permission denied. Please enable location access.');
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        setError('Location information unavailable.');
-                        break;
-                    case error.TIMEOUT:
-                        setError('Location request timed out.');
-                        break;
-                    default:
-                        setError('An unknown error occurred while getting location.');
-                }
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            }
-        );
-    };
-
-    // Verify location when user adjusts/refines via map or search
-    const verifyLocationSecurity = (clickedLat, clickedLng) => {
-        if (!currentLocation) {
-            setLocationVerified(false);
-            setError('⚠️ Please use "Get My Location" button first to verify your position');
-            return false;
-        }
-
-        const distance = calculateDistance(
-            currentLocation.lat,
-            currentLocation.lng,
-            clickedLat,
-            clickedLng
-        );
-
-        // Allow reasonable adjustment radius - farmer might refine exact plot location
-        const maxAllowedDistance = 500; // Increased to 500m for practical farm location refinement
-
-        if (distance > maxAllowedDistance) {
-            setLocationVerified(false);
-            setError(`⚠️ Location is ${Math.round(distance)}m from your current position. For security, stay within 500m when adjusting location. If your farm is further away, please go there first.`);
-            return false;
-        } else {
-            setLocationVerified(true);
-            if (distance > 50) {
-                // Show info message for adjustments > 50m
-                setError(`✅ Location adjusted by ${Math.round(distance)}m. This is acceptable for farm plot precision.`);
-                setTimeout(() => setError(''), 5000); // Clear after 5 seconds
-            } else {
-                setError('');
-            }
-            return true;
-        }
+    // Handle location data from LocationPicker component
+    const handleLocationChange = (locationData) => {
+        setFormData(prev => ({
+            ...prev,
+            location: locationData  // {latitude, longitude, county, subcounty, address, accuracy, verified}
+        }));
+        setError('');  // Clear any errors when location is updated
     };
 
     const handleChange = (e) => {
@@ -187,121 +67,6 @@ const SignUp = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleMapClick = (e) => {
-        const { lat, lng } = e.latlng;
-        
-        // Security check: verify clicked location against current location
-        const isVerified = verifyLocationSecurity(lat, lng);
-        
-        if (currentLocation && !isVerified) {
-            // Don't set location if verification fails
-            return;
-        }
-        
-        setFormData({ ...formData, location: { lat, lng } });
-        setError('');
-        fetchAddress(lat, lng);
-    };
-
-    const fetchAddress = async (lat, lng) => {
-        try {
-            const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
-                params: {
-                    lat,
-                    lon: lng,
-                    format: 'json',
-                    addressdetails: 1
-                },
-            });
-            const address = response.data.display_name;
-            const addressData = response.data.address;
-            
-            // Auto-fill county and subcounty from map coordinates
-            const detectedCounty = addressData.county || addressData.state || '';
-            const detectedSubcounty = addressData.suburb || addressData.town || addressData.village || '';
-            
-            setFormData((prevData) => ({ 
-                ...prevData, 
-                address,
-                county: detectedCounty,
-                subcounty: detectedSubcounty
-            }));
-            
-            console.log('📍 Auto-detected location:', { county: detectedCounty, subcounty: detectedSubcounty });
-        } catch (err) {
-            console.error('Error fetching address:', err);
-            setError('Failed to fetch address. Please try again.');
-        }
-    };
-
-    const handleSearch = async (query) => {
-        if (!query.trim()) {
-            setSearchResults([]);
-            return;
-        }
-        
-        setIsSearching(true);
-        try {
-            const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-                params: {
-                    q: `${query}, Kenya`,
-                    format: 'json',
-                    limit: 5,
-                    countrycodes: 'ke',
-                    addressdetails: 1
-                },
-            });
-            setSearchResults(response.data);
-        } catch (err) {
-            console.error('Error searching location:', err);
-            setSearchResults([]);
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
-    const handleSearchInputChange = (e) => {
-        const query = e.target.value;
-        setSearchQuery(query);
-        
-        clearTimeout(window.searchTimeout);
-        window.searchTimeout = setTimeout(() => {
-            if (query.length >= 2) {
-                handleSearch(query);
-            } else {
-                setSearchResults([]);
-            }
-        }, 500);
-    };
-
-    const handleSearchResultClick = (result) => {
-        const lat = parseFloat(result.lat);
-        const lng = parseFloat(result.lon);
-        
-        // Security check for search results too
-        const isVerified = verifyLocationSecurity(lat, lng);
-        
-        if (currentLocation && !isVerified) {
-            return;
-        }
-        
-        setFormData({ 
-            ...formData, 
-            location: { lat, lng },
-            address: result.display_name
-        });
-        setMapCenter([lat, lng]);
-        setMapZoom(15);
-        setSearchQuery(result.display_name.split(',')[0]);
-        setSearchResults([]);
-        setError('');
-    };
-
-    const clearSearch = () => {
-        setSearchQuery('');
-        setSearchResults([]);
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -309,21 +74,25 @@ const SignUp = () => {
             setError('Passwords do not match');
             return;
         }
+
+        // Optional: Validate national ID format if provided
+        if (formData.nationalId && formData.nationalId.trim()) {
+            // Kenya National ID is typically 7-8 digits
+            const nationalIdRegex = /^\d{7,8}$/;
+            if (!nationalIdRegex.test(formData.nationalId.trim())) {
+                setError('Invalid National ID format. Should be 7-8 digits.');
+                return;
+            }
+        }
         
         if (!formData.location) {
             setError('Please select your location on the map');
             return;
         }
 
-        // Security check: Ensure current location was captured
-        if (!currentLocation) {
-            setError('⚠️ Security: Please use "Use My Current Location" button to verify your location');
-            return;
-        }
-
-        // Security check: Ensure location is verified
-        if (!locationVerified) {
-            setError('⚠️ Security: Selected location must be verified against your current location');
+        // Security check: Ensure location is verified by LocationPicker
+        if (!formData.location.verified) {
+            setError('⚠️ Please verify your location using the GPS button in the location picker');
             return;
         }
 
@@ -332,34 +101,22 @@ const SignUp = () => {
                 // User data
                 firstName: formData.firstName,
                 lastName: formData.lastName,
+                nationalId: formData.nationalId || null, // Optional field
                 phoneNumber: formData.phoneNumber,
                 email: formData.email,
                 password: formData.password,
                 userType: 'farmer',
                 
-                // Location data with security info
+                // Location data (from LocationPicker component)
                 location: {
-                    latitude: formData.location.lat,
-                    longitude: formData.location.lng,
-                    county: formData.county,
-                    subcounty: formData.subcounty,
-                    addressDescription: formData.address,
+                    latitude: formData.location.latitude,
+                    longitude: formData.location.longitude,
+                    county: formData.location.county,
+                    subcounty: formData.location.subcounty,
+                    addressDescription: formData.location.address,
                     geofenceRadius: formData.geofenceRadius,
-                    
-                    // Security metadata
-                    currentLocation: {
-                        latitude: currentLocation.lat,
-                        longitude: currentLocation.lng,
-                        accuracy: currentLocation.accuracy,
-                        timestamp: currentLocation.timestamp
-                    },
-                    locationVerified: locationVerified,
-                    verificationDistance: calculateDistance(
-                        currentLocation.lat,
-                        currentLocation.lng,
-                        formData.location.lat,
-                        formData.location.lng
-                    )
+                    accuracy: formData.location.accuracy,
+                    verified: formData.location.verified
                 },
                 
                 // Farm data
@@ -367,96 +124,107 @@ const SignUp = () => {
                 farmSize: formData.farmSize,
             };
 
-            const response = await axios.post(
-                'http://localhost:5000/api/auth/farmer/signup',
-                signupData
-            );
+            // Store signup data temporarily
+            setPendingSignupData(signupData);
 
-            console.log('Signup successful:', response.data);
-            navigate('/loginF');
+            // Send OTP to email for verification
+            await sendOTP(formData.email);
+            
+            // Show OTP verification screen
+            setShowOTP(true);
+            setError('');
             
         } catch (err) {
             console.error('Signup error:', err);
-            setError(err.response?.data?.message || 'Sign up failed. Please try again.');
+            setError(err.message || 'Failed to send verification code. Please try again.');
         }
     };
 
-    const LocationMarker = () => {
-        useMapEvents({
-            click: handleMapClick,
-        });
-        
-        // Get computed CSS colors for Leaflet
-        const getComputedColor = (variable) => {
-            if (typeof window !== 'undefined') {
-                return getComputedStyle(document.documentElement)
-                    .getPropertyValue(variable).trim();
-            }
-            return '#004a2f'; // fallback
-        };
+    const sendOTP = async (email) => {
+        try {
+            // API call to send OTP
+            const response = await axios.post('http://localhost:5000/api/auth/send-otp', {
+                email: email,
+                purpose: 'signup'
+            });
 
-        const primaryColor = getComputedColor('--farmer-primary-color');
-        const successColor = getComputedColor('--farmer-success-color');
-        const accentColor = getComputedColor('--farmer-accent-color');
-        
-        return (
-            <>
-                {/* Current Location Marker (Blue) */}
-                {currentLocation && (
-                    <>
-                        <Circle
-                            center={[currentLocation.lat, currentLocation.lng]}
-                            radius={currentLocation.accuracy}
-                            pathOptions={{
-                                color: primaryColor,
-                                fillColor: primaryColor,
-                                fillOpacity: 0.1,
-                                weight: 2,
-                                dashArray: '5, 5'
-                            }}
-                        />
-                        <Marker 
-                            position={[currentLocation.lat, currentLocation.lng]}
-                            icon={L.icon({
-                                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-                                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                                iconSize: [25, 41],
-                                iconAnchor: [12, 41],
-                                popupAnchor: [1, -34],
-                                shadowSize: [41, 41]
-                            })}
-                        />
-                    </>
-                )}
-                
-                {/* Selected Farm Location Marker (Green) */}
-                {formData.location && (
-                    <>
-                        <Marker position={[formData.location.lat, formData.location.lng]} />
-                        <Circle
-                            center={[formData.location.lat, formData.location.lng]}
-                            radius={formData.geofenceRadius}
-                            pathOptions={{
-                                color: locationVerified ? successColor : accentColor,
-                                fillColor: locationVerified ? successColor : accentColor,
-                                fillOpacity: 0.2,
-                                weight: 2
-                            }}
-                        />
-                    </>
-                )}
-            </>
-        );
+            console.log('OTP sent successfully:', response.data);
+            
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Failed to send OTP');
+            }
+            
+        } catch (error) {
+            console.error('Send OTP error:', error);
+            throw new Error(error.response?.data?.message || 'Failed to send verification code. Please try again.');
+        }
+    };
+
+    const handleOTPComplete = async (otpCode) => {
+        setOtpError('');
+        setOtpLoading(true);
+
+        try {
+            // Step 1: Verify OTP
+            const otpResponse = await axios.post('http://localhost:5000/api/auth/verify-otp', {
+                email: formData.email,
+                otp: otpCode,
+                purpose: 'signup'
+            });
+
+            if (!otpResponse.data.success) {
+                throw new Error(otpResponse.data.message || 'Invalid OTP');
+            }
+
+            console.log('OTP verified successfully:', otpResponse.data);
+
+            // Step 2: Create account after OTP verification
+            const response = await axios.post(
+                'http://localhost:5000/api/auth/farmer/signup',
+                {
+                    ...pendingSignupData,
+                    emailVerified: true // Mark email as verified
+                }
+            );
+
+            console.log('Signup successful:', response.data);
+            alert('Account created successfully! Please login to continue.');
+            navigate('/loginF');
+            
+        } catch (err) {
+            console.error('OTP verification error:', err);
+            setOtpError(err.response?.data?.message || 'Invalid or expired OTP. Please try again.');
+        } finally {
+            setOtpLoading(false);
+        }
+    };
+
+    const handleResendOTP = async () => {
+        setOtpError('');
+        try {
+            await sendOTP(formData.email);
+            console.log('OTP resent successfully');
+        } catch (error) {
+            setOtpError('Failed to resend OTP. Please try again.');
+        }
+    };
+
+    const handleBackToSignup = () => {
+        setShowOTP(false);
+        setOtpError('');
+        setPendingSignupData(null);
     };
 
     return (
         <div className="auth-container signup-container">
-            <h2>🌾 Farmer Sign Up</h2>
-            <p className="signup-description">Join KilimoSmart and connect with buyers across Kenya</p>
-            
-            {error && <div className="error-message">⚠️ {error}</div>}
-            
-            <form onSubmit={handleSubmit} className="auth-form">
+            {!showOTP ? (
+                <>
+                    <h2>🌾 Farmer Sign Up</h2>
+                    <p className="signup-description">Join KilimoSmart and connect with buyers across Kenya</p>
+                    
+                    {error && <div className="error-message">⚠️ {error}</div>}
+                    
+                    <form onSubmit={handleSubmit} className="auth-form">
                 {/* Personal Information */}
                 <div className="filter-row">
                     <div className="form-group">
@@ -484,6 +252,22 @@ const SignUp = () => {
                             required 
                         />
                     </div>
+                </div>
+
+                <div className="form-group">
+                    <label htmlFor="nationalId">🆔 National ID (Optional)</label>
+                    <input 
+                        type="text" 
+                        id="nationalId"
+                        name="nationalId" 
+                        placeholder="Enter your national ID number" 
+                        value={formData.nationalId} 
+                        onChange={handleChange}
+                        maxLength="20"
+                    />
+                    <small style={{ color: '#666', fontSize: '0.85rem' }}>
+                        Optional: You can add this later in your profile
+                    </small>
                 </div>
 
                 <div className="form-group">
@@ -551,114 +335,21 @@ const SignUp = () => {
                     </div>
                 </div>
 
-                {/* Location Section with Intelligent Auto-Fill */}
+                {/* Location Section - Using LocationPicker Component */}
                 <div className="form-group">
                     <label>📍 Farm Location</label>
                     <p className="location-help">
-                        🎯 Click below to auto-detect your location, then refine if needed using search or map
+                        🎯 Use GPS to detect your current location, or search/click the map to set your farm location
                     </p>
                     
-                    {/* Smart Location Button */}
-                    <button
-                        type="button"
-                        onClick={getCurrentLocation}
-                        disabled={isGettingLocation}
-                        className={`location-btn ${currentLocation ? 'detected' : ''}`}
-                    >
-                        {isGettingLocation ? '⏳ Getting Location...' : 
-                         currentLocation ? '✅ Location Set - Adjust if Needed' : 
-                         '📍 Get My Location'}
-                    </button>
-                    
-                    {currentLocation && (
-                        <div className="location-info">
-                            ✅ GPS Position: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
-                            <br />
-                            📏 Accuracy: ±{Math.round(currentLocation.accuracy)}m
-                            {locationVerified && (
-                                <>
-                                    <br />
-                                    <span className="location-verified">
-                                        ✓ Farm Location Verified
-                                    </span>
-                                </>
-                            )}
-                        </div>
-                    )}
-                    
-                    {/* Optional Refinement: Search Bar */}
-                    {currentLocation && (
-                        <>
-                            <div className="location-search">
-                                <p className="location-help" style={{ marginTop: '15px', marginBottom: '8px' }}>
-                                    💡 <strong>Optional:</strong> Search or click the map below to refine your exact farm plot location
-                                </p>
-                                <div className="search-input-wrapper">
-                                    <input
-                                        type="text"
-                                        placeholder="🔍 Refine location: Search for street, area, or landmark..."
-                                        value={searchQuery}
-                                        onChange={handleSearchInputChange}
-                                        className="search-input"
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            type="button"
-                                            onClick={clearSearch}
-                                            className="clear-search"
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
-                                    {isSearching && <div className="search-spinner">⏳</div>}
-                                </div>
-                            
-                                {searchResults.length > 0 && (
-                                    <div className="search-results">
-                                        {searchResults.map((result, index) => (
-                                            <div
-                                                key={index}
-                                                className="search-result-item"
-                                                onClick={() => handleSearchResultClick(result)}
-                                            >
-                                                <div className="result-name">📍 {result.display_name.split(',')[0]}</div>
-                                                <div className="result-details">{result.display_name}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-                    
-                    {/* Interactive Map - Always visible after getting location */}
-                    {currentLocation && (
-                        <div className="map-container">
-                            <MapContainer 
-                                center={mapCenter} 
-                                zoom={mapZoom}
-                                key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
-                            >
-                                <TileLayer 
-                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                />
-                                <LocationMarker />
-                            </MapContainer>
-                            
-                            {formData.location && (
-                                <div className="selected-location">
-                                    {locationVerified ? '✅ Verified' : '⏳ Verifying'}: {formData.address || `${formData.location.lat.toFixed(4)}, ${formData.location.lng.toFixed(4)}`}
-                                    {formData.county && (
-                                        <>
-                                            <br />
-                                            <small>🏛️ {formData.county}{formData.subcounty && ` • ${formData.subcounty}`}</small>
-                                        </>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    <LocationPicker
+                        onLocationChange={handleLocationChange}
+                        geofenceRadius={formData.geofenceRadius}
+                        showSearch={true}
+                        showMap={true}
+                        showCountyInputs={true}
+                        required={true}
+                    />
                 </div>
 
                 {/* Geofence Radius */}
@@ -724,7 +415,7 @@ const SignUp = () => {
                 
                 <button 
                     type="submit" 
-                    disabled={!formData.location || !locationVerified}
+                    disabled={!formData.location?.verified}
                     className="auth-btn"
                 >
                     🚀 Create Farmer Account
@@ -734,6 +425,26 @@ const SignUp = () => {
                     Already have an account? <a href="/loginF">Login here</a>
                 </p>
             </form>
+            </>
+            ) : (
+                <>
+                    <div className="otp-back-btn">
+                        <button onClick={handleBackToSignup} className="back-link">
+                            ← Back to Sign Up
+                        </button>
+                    </div>
+                    
+                    <OTPInput
+                        length={6}
+                        onComplete={handleOTPComplete}
+                        onResend={handleResendOTP}
+                        email={formData.email}
+                        isLoading={otpLoading}
+                        error={otpError}
+                        purpose="signup"
+                    />
+                </>
+            )}
         </div>
     );
 };
