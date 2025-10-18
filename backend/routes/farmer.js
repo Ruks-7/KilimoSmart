@@ -502,4 +502,63 @@ router.get('/dashboard-stats', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/farmer/profile
+ * Get complete farmer profile with location data
+ */
+router.get('/profile', async (req, res) => {
+  try {
+    const farmerId = req.user.farmerId || req.user.userId;
+
+    const result = await query(
+      `SELECT 
+        f.farmer_id as "farmerId",
+        f.farm_name as "farmName",
+        f.farm_type as "farmType",
+        f.farm_size as "farmSize",
+        f.is_verified as "isVerified",
+        f.is_active as "isActive",
+        f.reputation_score as "reputationScore",
+        f.total_sales as "totalSales",
+        f.profile_photo as "profilePhoto",
+        u.user_id as "userId",
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.email,
+        u.phone_number as "phoneNumber",
+        u.email_verified as "emailVerified",
+        l.location_id as "locationId",
+        l.latitude,
+        l.longitude,
+        l.county,
+        l.subcounty,
+        l.address_description as "addressDescription"
+      FROM FARMER f
+      JOIN "USER" u ON f.user_id = u.user_id
+      LEFT JOIN LOCATION l ON f.location_id = l.location_id
+      WHERE f.farmer_id = $1`,
+      [farmerId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Farmer profile not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      profile: result.rows[0],
+    });
+  } catch (error) {
+    console.error('Get farmer profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch farmer profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
 module.exports = router;

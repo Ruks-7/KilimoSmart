@@ -67,25 +67,28 @@ const FarmerDashboard = () => {
 
             console.log('📡 Fetching dashboard data from backend...');
 
-            // Fetch farmer's products, orders, and payments in parallel
-            const [productsResponse, ordersResponse, paymentsResponse] = await Promise.all([
+            // Fetch farmer's products, orders, payments, and profile in parallel
+            const [productsResponse, ordersResponse, paymentsResponse, profileResponse] = await Promise.all([
                 fetch('http://localhost:5000/api/farmer/products', { headers }),
                 fetch('http://localhost:5000/api/farmer/orders', { headers }),
-                fetch('http://localhost:5000/api/farmer/payments', { headers })
+                fetch('http://localhost:5000/api/farmer/payments', { headers }),
+                fetch('http://localhost:5000/api/farmer/profile', { headers })
             ]);
 
             // Log responses for debugging
             console.log('API Responses:', {
                 products: productsResponse.status,
                 orders: ordersResponse.status,
-                payments: paymentsResponse.status
+                payments: paymentsResponse.status,
+                profile: profileResponse.status
             });
 
-            if (!productsResponse.ok || !ordersResponse.ok || !paymentsResponse.ok) {
+            if (!productsResponse.ok || !ordersResponse.ok || !paymentsResponse.ok || !profileResponse.ok) {
                 const errorDetails = {
                     products: !productsResponse.ok ? await productsResponse.text() : 'OK',
                     orders: !ordersResponse.ok ? await ordersResponse.text() : 'OK',
-                    payments: !paymentsResponse.ok ? await paymentsResponse.text() : 'OK'
+                    payments: !paymentsResponse.ok ? await paymentsResponse.text() : 'OK',
+                    profile: !profileResponse.ok ? await profileResponse.text() : 'OK'
                 };
                 console.error('API Error Details:', errorDetails);
                 throw new Error('Failed to fetch dashboard data');
@@ -94,11 +97,13 @@ const FarmerDashboard = () => {
             const productsData = await productsResponse.json();
             const ordersData = await ordersResponse.json();
             const paymentsData = await paymentsResponse.json();
+            const profileData = await profileResponse.json();
 
             // Extract data from responses
             const fetchedProducts = productsData.products || [];
             const fetchedOrders = ordersData.orders || [];
             const fetchedPayments = paymentsData.payments || [];
+            const fetchedProfile = profileData.profile || {};
 
             // Calculate statistics from the fetched data
             const activeProducts = fetchedProducts.filter(p => p.status === 'available');
@@ -106,24 +111,26 @@ const FarmerDashboard = () => {
             const totalRevenue = fetchedPayments
                 .reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
 
-            // Get farmer data from localStorage (set during login/signup)
-            const storedFarmerData = JSON.parse(
-                localStorage.getItem('userData') || 
-                sessionStorage.getItem('userData') || 
-                '{}'
-            );
-
-            // Set farmer data from localStorage
+            // Set farmer data from API profile response
             setFarmerData({
-                firstName: storedFarmerData.firstName || storedFarmerData.first_name || '',
-                lastName: storedFarmerData.lastName || storedFarmerData.last_name || '',
-                farmName: storedFarmerData.farmName || storedFarmerData.farm_name || 'My Farm',
-                farmType: storedFarmerData.farmType || storedFarmerData.farm_type || 'Not specified',
-                farmSize: storedFarmerData.farmSize || storedFarmerData.farm_size_acres || 'Not specified',
-                location: storedFarmerData.location || 'Not specified',
-                reputationScore: storedFarmerData.reputation_score || 0,
-                isVerified: storedFarmerData.is_verified || false,
-                profilePhoto: storedFarmerData.profile_photo || null
+                firstName: fetchedProfile.firstName || '',
+                lastName: fetchedProfile.lastName || '',
+                email: fetchedProfile.email || '',
+                phoneNumber: fetchedProfile.phoneNumber || '',
+                farmName: fetchedProfile.farmName || 'My Farm',
+                farmType: fetchedProfile.farmType || 'Not specified',
+                farmSize: fetchedProfile.farmSize ? `${fetchedProfile.farmSize} acres` : 'Not specified',
+                location: fetchedProfile.county 
+                    ? `${fetchedProfile.county}${fetchedProfile.subcounty ? ', ' + fetchedProfile.subcounty : ''}`
+                    : 'Not specified',
+                addressDescription: fetchedProfile.addressDescription || '',
+                latitude: fetchedProfile.latitude || null,
+                longitude: fetchedProfile.longitude || null,
+                reputationScore: fetchedProfile.reputationScore || 0,
+                isVerified: fetchedProfile.isVerified || false,
+                profilePhoto: fetchedProfile.profilePhoto || null,
+                totalSales: fetchedProfile.totalSales || 0,
+                emailVerified: fetchedProfile.emailVerified || false
             });
 
             // Set statistics
@@ -133,7 +140,7 @@ const FarmerDashboard = () => {
                 totalOrders: fetchedOrders.length,
                 pendingOrders: pendingOrders.length,
                 totalRevenue: totalRevenue,
-                reputationScore: 0 // Will be fetched from farmer profile later
+                reputationScore: fetchedProfile.reputationScore || 0
             });
 
             // Format products data (already in correct format from API)
@@ -1182,12 +1189,42 @@ const FarmerDashboard = () => {
                                         <p>{farmerData?.farmSize}</p>
                                     </div>
                                     <div className="info-item">
-                                        <label>Location</label>
-                                        <p>{farmerData?.location}</p>
+                                        <label>Email</label>
+                                        <p>
+                                            {farmerData?.email}
+                                            {farmerData?.emailVerified && (
+                                                <span className="verified-badge" style={{marginLeft: '8px'}}>✓</span>
+                                            )}
+                                        </p>
                                     </div>
+                                    <div className="info-item">
+                                        <label>Phone Number</label>
+                                        <p>{farmerData?.phoneNumber}</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Location</label>
+                                        <p>
+                                            📍 {farmerData?.location}
+                                            {farmerData?.latitude && farmerData?.longitude && (
+                                                <span style={{display: 'block', fontSize: '0.85em', color: '#666', marginTop: '4px'}}>
+                                                    GPS: {parseFloat(farmerData.latitude).toFixed(6)}, {parseFloat(farmerData.longitude).toFixed(6)}
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    {farmerData?.addressDescription && (
+                                        <div className="info-item" style={{gridColumn: 'span 2'}}>
+                                            <label>Address Description</label>
+                                            <p>{farmerData.addressDescription}</p>
+                                        </div>
+                                    )}
                                     <div className="info-item">
                                         <label>Reputation Score</label>
                                         <p>⭐ {farmerData?.reputationScore}/5.0</p>
+                                    </div>
+                                    <div className="info-item">
+                                        <label>Total Sales</label>
+                                        <p>KES {farmerData?.totalSales?.toLocaleString() || '0'}</p>
                                     </div>
                                     <div className="info-item">
                                         <label>Verification Status</label>
@@ -1207,12 +1244,6 @@ const FarmerDashboard = () => {
                                         onClick={() => showNotificationMessage('Edit profile feature coming soon!', 'info')}
                                     >
                                         ✏️ Edit Profile
-                                    </button>
-                                    <button 
-                                        className="btn-secondary"
-                                        onClick={() => showNotificationMessage('Location verification feature coming soon!', 'info')}
-                                    >
-                                        📍 Verify Farm Location
                                     </button>
                                     <button 
                                         className="btn-secondary"
