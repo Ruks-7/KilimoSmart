@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Styling/auth.css';
 import './Styling/dashboard.css';
@@ -10,6 +10,7 @@ const FarmerDashboard = () => {
     const [farmerData, setFarmerData] = useState(null);
     const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);
+    const [payments, setPayments] = useState([]);
     const [stats, setStats] = useState({
         totalProducts: 0,
         activeListings: 0,
@@ -21,7 +22,6 @@ const FarmerDashboard = () => {
 
     // Modal states
     const [showProductModal, setShowProductModal] = useState(false);
-    const [showInventoryModal, setShowInventoryModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [showNotification, setShowNotification] = useState(false);
     const [notificationMessage, setNotificationMessage] = useState('');
@@ -43,88 +43,177 @@ const FarmerDashboard = () => {
         expiryDate: ''
     });
 
+    const fetchDashboardData = useCallback(async () => {
+        try {
+            // Check both localStorage and sessionStorage for token
+            const token = localStorage.getItem('authToken') || 
+                         sessionStorage.getItem('authToken') || 
+                         localStorage.getItem('token') ||
+                         sessionStorage.getItem('token');
+
+            if (!token) {
+                console.log('❌ No token found in localStorage or sessionStorage');
+                showNotificationMessage('Please login to continue', 'error');
+                navigate('/loginF');
+                return;
+            }
+
+            console.log('🔑 Token found:', token ? 'Yes' : 'No');
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+
+            console.log('📡 Fetching dashboard data from backend...');
+
+            // Fetch farmer's products, orders, and payments in parallel
+            const [productsResponse, ordersResponse, paymentsResponse] = await Promise.all([
+                fetch('http://localhost:5000/api/farmer/products', { headers }),
+                fetch('http://localhost:5000/api/farmer/orders', { headers }),
+                fetch('http://localhost:5000/api/farmer/payments', { headers })
+            ]);
+
+            // Log responses for debugging
+            console.log('API Responses:', {
+                products: productsResponse.status,
+                orders: ordersResponse.status,
+                payments: paymentsResponse.status
+            });
+
+            if (!productsResponse.ok || !ordersResponse.ok || !paymentsResponse.ok) {
+                const errorDetails = {
+                    products: !productsResponse.ok ? await productsResponse.text() : 'OK',
+                    orders: !ordersResponse.ok ? await ordersResponse.text() : 'OK',
+                    payments: !paymentsResponse.ok ? await paymentsResponse.text() : 'OK'
+                };
+                console.error('API Error Details:', errorDetails);
+                throw new Error('Failed to fetch dashboard data');
+            }
+
+            const productsData = await productsResponse.json();
+            const ordersData = await ordersResponse.json();
+            const paymentsData = await paymentsResponse.json();
+
+            // Extract data from responses
+            const fetchedProducts = productsData.products || [];
+            const fetchedOrders = ordersData.orders || [];
+            const fetchedPayments = paymentsData.payments || [];
+
+            // Calculate statistics from the fetched data
+            const activeProducts = fetchedProducts.filter(p => p.status === 'available');
+            const pendingOrders = fetchedOrders.filter(o => o.status === 'pending');
+            const totalRevenue = fetchedPayments
+                .reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0);
+
+            // Get farmer data from localStorage (set during login/signup)
+            const storedFarmerData = JSON.parse(
+                localStorage.getItem('userData') || 
+                sessionStorage.getItem('userData') || 
+                '{}'
+            );
+
+            // Set farmer data from localStorage
+            setFarmerData({
+                firstName: storedFarmerData.firstName || storedFarmerData.first_name || '',
+                lastName: storedFarmerData.lastName || storedFarmerData.last_name || '',
+                farmName: storedFarmerData.farmName || storedFarmerData.farm_name || 'My Farm',
+                farmType: storedFarmerData.farmType || storedFarmerData.farm_type || 'Not specified',
+                farmSize: storedFarmerData.farmSize || storedFarmerData.farm_size_acres || 'Not specified',
+                location: storedFarmerData.location || 'Not specified',
+                reputationScore: storedFarmerData.reputation_score || 0,
+                isVerified: storedFarmerData.is_verified || false,
+                profilePhoto: storedFarmerData.profile_photo || null
+            });
+
+            // Set statistics
+            setStats({
+                totalProducts: fetchedProducts.length,
+                activeListings: activeProducts.length,
+                totalOrders: fetchedOrders.length,
+                pendingOrders: pendingOrders.length,
+                totalRevenue: totalRevenue,
+                reputationScore: 0 // Will be fetched from farmer profile later
+            });
+
+            // Format products data (already in correct format from API)
+            const formattedProducts = fetchedProducts.map(product => ({
+                id: product.id,
+                name: product.name,
+                category: product.category,
+                quantity: parseFloat(product.quantity || 0),
+                unit: product.unit || 'kg',
+                pricePerUnit: parseFloat(product.price || 0),
+                status: product.status || 'available',
+                harvestDate: product.harvestDate,
+                expiryDate: product.expiryDate,
+                isOrganic: product.isOrganic || false,
+                description: product.description || ''
+            }));
+
+            // Format orders data
+            const formattedOrders = fetchedOrders.map(order => ({
+                id: order.id,
+                buyer: order.buyerName || 'Unknown Buyer',
+                buyerPhone: order.buyerPhone,
+                itemCount: order.itemCount || 1,
+                amount: parseFloat(order.amount || 0),
+                status: order.status || 'pending',
+                date: order.date,
+                deliveryAddress: order.deliveryAddress || '',
+                deliveryDate: order.deliveryDate,
+                paymentStatus: order.paymentStatus || 'pending',
+                paymentMethod: order.paymentMethod || 'M-Pesa'
+            }));
+
+            setProducts(formattedProducts);
+            setOrders(formattedOrders);
+            setPayments(fetchedPayments);
+            setLoading(false);
+
+        } catch (error) {
+            console.error('❌ Error fetching dashboard data:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            
+            // More specific error messages
+            let errorMessage = 'Failed to load dashboard data. Please try again.';
+            let shouldRedirectToLogin = false;
+            
+            if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+                errorMessage = '⚠️ Cannot connect to backend server. Please ensure the backend is running on http://localhost:5000';
+            } else if (error.message.includes('401') || error.message.includes('Unauthorized') || error.message.includes('Token expired')) {
+                errorMessage = '🔒 Your session has expired. Please login again.';
+                shouldRedirectToLogin = true;
+            } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+                errorMessage = '⛔ Access denied. You do not have permission to access farmer resources.';
+            }
+            
+            showNotificationMessage(errorMessage, 'error');
+            setLoading(false);
+            
+            // If authentication error or token expired, clear tokens and redirect to login
+            if (shouldRedirectToLogin) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('userData');
+                sessionStorage.removeItem('authToken');
+                sessionStorage.removeItem('token');
+                sessionStorage.removeItem('userData');
+                
+                setTimeout(() => {
+                    navigate('/loginF');
+                }, 2000); // Give user time to see the message
+            }
+        }
+    }, [navigate]); // Add navigate as dependency
+
     useEffect(() => {
         fetchDashboardData();
-    }, []);
-
-    const fetchDashboardData = async () => {
-        try {
-            // Simulated data - replace with actual API calls
-            const mockFarmerData = {
-                firstName: 'John',
-                lastName: 'Doe',
-                farmName: 'Green Valley Farm',
-                farmType: 'Vegetables',
-                farmSize: 'Medium Scale',
-                location: 'Nairobi, Kenya',
-                reputationScore: 4.5,
-                isVerified: true,
-                profilePhoto: null
-            };
-
-            const mockStats = {
-                totalProducts: 12,
-                activeListings: 8,
-                totalOrders: 45,
-                pendingOrders: 3,
-                totalRevenue: 125000,
-                reputationScore: 4.5
-            };
-
-            const mockProducts = [
-                {
-                    id: 1,
-                    name: 'Fresh Tomatoes',
-                    category: 'Vegetables',
-                    quantity: 500,
-                    unit: 'kg',
-                    pricePerUnit: 80,
-                    status: 'available',
-                    harvestDate: '2025-10-01'
-                },
-                {
-                    id: 2,
-                    name: 'Organic Cabbage',
-                    category: 'Vegetables',
-                    quantity: 300,
-                    unit: 'kg',
-                    pricePerUnit: 45,
-                    status: 'available',
-                    harvestDate: '2025-10-05'
-                }
-            ];
-
-            const mockOrders = [
-                {
-                    id: 1,
-                    buyer: 'Jane Smith',
-                    product: 'Fresh Tomatoes',
-                    quantity: 50,
-                    amount: 4000,
-                    status: 'pending',
-                    date: '2025-10-10'
-                },
-                {
-                    id: 2,
-                    buyer: 'Mike Johnson',
-                    product: 'Organic Cabbage',
-                    quantity: 30,
-                    amount: 1350,
-                    status: 'confirmed',
-                    date: '2025-10-09'
-                }
-            ];
-
-            setFarmerData(mockFarmerData);
-            setStats(mockStats);
-            setProducts(mockProducts);
-            setOrders(mockOrders);
-            setLoading(false);
-        } catch (error) {
-            console.error('Error fetching dashboard data:', error);
-            setLoading(false);
-        }
-    };
+    }, [fetchDashboardData]);
 
     const showNotificationMessage = (message, type = 'success') => {
         setNotificationMessage(message);
@@ -135,10 +224,16 @@ const FarmerDashboard = () => {
 
     const handleLogout = () => {
         if (window.confirm('Are you sure you want to logout?')) {
+            // Clear both localStorage and sessionStorage
             localStorage.removeItem('token');
             localStorage.removeItem('userType');
             localStorage.removeItem('authToken');
             localStorage.removeItem('userData');
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('userType');
+            sessionStorage.removeItem('authToken');
+            sessionStorage.removeItem('userData');
+            
             showNotificationMessage('Logged out successfully', 'info');
             setTimeout(() => navigate('/loginF'), 1000);
         }
@@ -155,9 +250,58 @@ const FarmerDashboard = () => {
     const handleAddProduct = async (e) => {
         e.preventDefault();
         try {
-            // Add API call to create product
-            console.log('Adding product:', productForm);
-            showNotificationMessage(`${productForm.productName} added successfully! 🎉`, 'success');
+            // Check both localStorage and sessionStorage
+            const token = localStorage.getItem('authToken') || 
+                         sessionStorage.getItem('authToken') ||
+                         localStorage.getItem('token') ||
+                         sessionStorage.getItem('token');
+            const farmerId = localStorage.getItem('farmerId') || 
+                           sessionStorage.getItem('farmerId') ||
+                           localStorage.getItem('userId') ||
+                           sessionStorage.getItem('userId');
+
+            if (!token) {
+                showNotificationMessage('Please login to continue', 'error');
+                navigate('/loginF');
+                return;
+            }
+
+            const productData = {
+                farmer_id: farmerId,
+                product_name: productForm.productName,
+                category: productForm.category,
+                description: productForm.description,
+                quantity_available: parseFloat(productForm.quantity),
+                unit_of_measure: productForm.unit,
+                price_per_unit: parseFloat(productForm.pricePerUnit),
+                harvest_date: productForm.harvestDate || null,
+                expiry_date: productForm.expiryDate || null,
+                is_organic: productForm.isOrganic,
+                status: 'available'
+            };
+
+            const response = await fetch('http://localhost:5000/api/products', {
+                method: selectedProduct ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(selectedProduct ? { ...productData, product_id: selectedProduct.id } : productData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to add product');
+            }
+
+            // Product added/updated successfully
+            showNotificationMessage(
+                selectedProduct 
+                    ? `${productForm.productName} updated successfully! 🎉` 
+                    : `${productForm.productName} added successfully! 🎉`, 
+                'success'
+            );
+            
             // Reset form and close modal
             setProductForm({
                 productName: '',
@@ -170,11 +314,12 @@ const FarmerDashboard = () => {
                 harvestDate: '',
                 expiryDate: ''
             });
+            setSelectedProduct(null);
             setShowProductModal(false);
             fetchDashboardData();
         } catch (error) {
             console.error('Error adding product:', error);
-            showNotificationMessage('Failed to add product. Please try again.', 'error');
+            showNotificationMessage(error.message || 'Failed to add product. Please try again.', 'error');
         }
     };
 
@@ -208,12 +353,31 @@ const FarmerDashboard = () => {
     const handleDeleteProduct = async (productId, productName) => {
         if (window.confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
             try {
-                console.log('Deleting product:', productId);
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                
+                if (!token) {
+                    showNotificationMessage('Please login to continue', 'error');
+                    navigate('/loginF');
+                    return;
+                }
+
+                const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to delete product');
+                }
+
                 showNotificationMessage(`${productName} deleted successfully!`, 'info');
                 fetchDashboardData();
             } catch (error) {
                 console.error('Error deleting product:', error);
-                showNotificationMessage('Failed to delete product.', 'error');
+                showNotificationMessage(error.message || 'Failed to delete product.', 'error');
             }
         }
     };
@@ -655,7 +819,7 @@ const FarmerDashboard = () => {
                                 </button>
                                 <button 
                                     className="btn-primary"
-                                    onClick={() => setShowInventoryModal(true)}
+                                    onClick={() => showNotificationMessage('Bulk update feature coming soon!', 'info')}
                                     title="Bulk update inventory"
                                 >
                                     📊 Bulk Update
@@ -917,8 +1081,8 @@ const FarmerDashboard = () => {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Transaction ID</th>
                                         <th>Order ID</th>
+                                        <th>Buyer</th>
                                         <th>Amount</th>
                                         <th>Method</th>
                                         <th>Date</th>
@@ -926,22 +1090,29 @@ const FarmerDashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td>TXN-001</td>
-                                        <td>#001</td>
-                                        <td>KSh 4,000</td>
-                                        <td>M-Pesa</td>
-                                        <td>2025-10-10</td>
-                                        <td><span className="status-badge status-completed">Completed</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td>TXN-002</td>
-                                        <td>#002</td>
-                                        <td>KSh 1,350</td>
-                                        <td>M-Pesa</td>
-                                        <td>2025-10-09</td>
-                                        <td><span className="status-badge status-pending">Pending</span></td>
-                                    </tr>
+                                    {payments.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="6" className="empty-state">
+                                                <div className="empty-icon">💸</div>
+                                                <p>No payment history yet</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        payments.map((payment) => (
+                                            <tr key={payment.id}>
+                                                <td>#{payment.id}</td>
+                                                <td>{payment.buyerName}</td>
+                                                <td>KSh {parseFloat(payment.amount).toLocaleString()}</td>
+                                                <td>{payment.method || payment.type}</td>
+                                                <td>{new Date(payment.date).toLocaleDateString()}</td>
+                                                <td>
+                                                    <span className={`status-badge status-${payment.status.toLowerCase()}`}>
+                                                        {payment.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>

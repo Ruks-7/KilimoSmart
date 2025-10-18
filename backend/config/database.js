@@ -1,15 +1,13 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Create PostgreSQL connection pool with Azure SSL configuration
+// PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 10000, // Azure needs more time - 10 seconds timeout
-  ssl: {
-    rejectUnauthorized: false, // Azure PostgreSQL requires SSL but we'll accept self-signed certs
-  }
+  connectionTimeoutMillis: 10000,
+    rejectUnauthorized: false,
 });
 
 // Test database connection

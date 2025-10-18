@@ -4,6 +4,8 @@ require('dotenv').config();
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const farmerRoutes = require('./routes/farmer');
+const buyerRoutes = require('./routes/buyer');
 
 // Initialize Express app
 const app = express();
@@ -38,6 +40,8 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/farmer', farmerRoutes);
+app.use('/api/buyer', buyerRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -84,10 +88,27 @@ app.listen(PORT, () => {
   console.log('\n📚 Available endpoints:');
   console.log('  GET  /health');
   console.log('  GET  /');
+  console.log('\n  🔐 Auth Routes:');
   console.log('  POST /api/auth/send-otp');
   console.log('  POST /api/auth/verify-otp');
   console.log('  POST /api/auth/farmer/verify-credentials');
   console.log('  POST /api/auth/farmer/signup');
+  console.log('\n  🌾 Farmer Routes (Protected):');
+  console.log('  GET  /api/farmer/products');
+  console.log('  POST /api/farmer/products');
+  console.log('  PUT  /api/farmer/products');
+  console.log('  DEL  /api/farmer/products/:id');
+  console.log('  GET  /api/farmer/orders');
+  console.log('  GET  /api/farmer/payments');
+  console.log('  GET  /api/farmer/dashboard-stats');
+  console.log('\n  🛒 Buyer Routes (Protected):');
+  console.log('  GET  /api/buyer/products');
+  console.log('  GET  /api/buyer/products/:id');
+  console.log('  POST /api/buyer/orders');
+  console.log('  GET  /api/buyer/orders');
+  console.log('  GET  /api/buyer/orders/:id');
+  console.log('  PUT  /api/buyer/orders/:id/cancel');
+  console.log('  GET  /api/buyer/categories');
   console.log('='.repeat(50));
 });
 

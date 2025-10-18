@@ -1,5 +1,3 @@
-/* Farmer Dashboard Styles */
-
 .farmer-dashboard {
     min-height: 100vh;
     background: var(--farmer-gradient-light);
@@ -253,7 +251,7 @@
     border-bottom: 2px solid #f0f0f0;
     overflow-x: auto;
     position: sticky;
-    top: 86px;
+    top: 30px;
     z-index: 99;
     position: relative;
 }

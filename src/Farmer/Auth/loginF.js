@@ -161,21 +161,24 @@ const [formData, setFormData] = useState({
       });
 
       console.log('✅ OTP verified successfully:', response.data);
+      console.log('Token received:', response.data.token ? 'Yes' : 'No');
+      console.log('User data:', response.data.user);
       console.log('Remember me:', rememberMe);
       
-      // Store token
-      if (rememberMe) {
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('userData', JSON.stringify(response.data.user));
-      } else {
-        sessionStorage.setItem('authToken', response.data.token);
-        sessionStorage.setItem('userData', JSON.stringify(response.data.user));
-      }
-
-      alert('Login successful! OTP verified.');
+      // Store token and user data
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('authToken', response.data.token);
+      storage.setItem('userData', JSON.stringify(response.data.user));
+      storage.setItem('userType', response.data.user.userType || 'farmer');
       
-      // Redirect to farmer dashboard
-      navigate('/farmer/dashboard');
+      console.log('✅ Token stored in:', rememberMe ? 'localStorage' : 'sessionStorage');
+      console.log('✅ Navigating to /farmer/dashboard...');
+      
+      // Show success message briefly before navigation
+      alert('Login successful! Redirecting to dashboard...');
+      
+      // Use replace to prevent going back to login
+      navigate('/farmer/dashboard', { replace: true });
       
     } catch (error) {
       console.error('❌ OTP verification error:', error.response?.data || error.message);
