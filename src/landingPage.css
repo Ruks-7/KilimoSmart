@@ -666,6 +666,9 @@ html {
 .cta .btn-primary {
   background-color: var(--accent-secondary);
   box-shadow: 0 4px 12px rgba(255, 163, 35, 0.3);
+  justify-content: center;
+  margin: 0 auto;
+  display: inline-flex;
 }
 
 .cta .btn-primary:hover {
@@ -877,7 +880,7 @@ footer {
   }
   
   .btn-primary {
-    width: 100%;
+    width: 60%;
     justify-content: center;
     padding: 16px 24px;
     font-size: 1.1rem;
