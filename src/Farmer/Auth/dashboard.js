@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import CameraCapture from '../../components/CameraCapture';
 import './Styling/auth.css';
 import './Styling/dashboard.css';
 
@@ -29,6 +30,13 @@ const FarmerDashboard = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterCategory, setFilterCategory] = useState('all');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    
+    // Camera and photo states
+    const [showCamera, setShowCamera] = useState(false);
+    const [productPhotos, setProductPhotos] = useState([]);
+    
+    // Device detection
+    const [isMobile, setIsMobile] = useState(false);
 
     // Product form state
     const [productForm, setProductForm] = useState({
@@ -42,6 +50,23 @@ const FarmerDashboard = () => {
         harvestDate: '',
         expiryDate: ''
     });
+
+    // Detect mobile device on component mount (ONLY by user agent, not screen size)
+    useEffect(() => {
+        const checkIfMobile = () => {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            // Check ONLY for actual mobile devices by user agent (cannot be faked by resizing)
+            const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+            // Also check for touch support as additional verification
+            const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            // Device must be BOTH mobile user agent AND have touch support
+            setIsMobile(isMobileDevice && hasTouchScreen);
+        };
+        
+        checkIfMobile();
+        // No need to listen for resize since user agent doesn't change
+    }, []);
 
     const fetchDashboardData = useCallback(async () => {
         try {
@@ -254,8 +279,46 @@ const FarmerDashboard = () => {
         }));
     };
 
+    const handleCameraCapture = (photos) => {
+        setProductPhotos(photos);
+        setShowCamera(false);
+        showNotificationMessage(`${photos.length} photo(s) captured successfully!`, 'success');
+    };
+
+    const removePhoto = (index) => {
+        setProductPhotos(prev => {
+            const newPhotos = [...prev];
+            newPhotos.splice(index, 1);
+            return newPhotos;
+        });
+    };
+
+    const closeProductModal = () => {
+        setShowProductModal(false);
+        setSelectedProduct(null);
+        setProductPhotos([]);
+        setProductForm({
+            productName: '',
+            category: '',
+            quantity: '',
+            unit: 'kg',
+            pricePerUnit: '',
+            description: '',
+            isOrganic: false,
+            harvestDate: '',
+            expiryDate: ''
+        });
+    };
+
     const handleAddProduct = async (e) => {
         e.preventDefault();
+        
+        // Validate that photos are captured (mandatory on mobile)
+        if (isMobile && productPhotos.length === 0) {
+            showNotificationMessage('📸 Please capture at least one product photo before submitting', 'error');
+            return;
+        }
+        
         try {
             // Check both localStorage and sessionStorage
             const token = localStorage.getItem('authToken') || 
@@ -663,8 +726,14 @@ const FarmerDashboard = () => {
                             <h2 className="section-title">My Products</h2>
                             <button 
                                 className="btn-primary"
-                                onClick={() => setShowProductModal(true)}
-                                title="List a new product for sale"
+                                onClick={() => {
+                                    if (!isMobile) {
+                                        showNotificationMessage('📱 Please use a mobile device to add products. Product photos are required and must be captured using your phone camera.', 'info');
+                                    } else {
+                                        setShowProductModal(true);
+                                    }
+                                }}
+                                title={isMobile ? "List a new product for sale" : "Product addition requires a mobile device"}
                             >
                                 <span>+</span> Add New Product
                             </button>
@@ -1378,14 +1447,58 @@ const FarmerDashboard = () => {
                                 </label>
                             </div>
 
+                            {/* Product Photos Section */}
+                            <div className="form-group">
+                                <label>Product Photos {isMobile && <span style={{color: 'red'}}>*</span>}</label>
+                                {isMobile && productPhotos.length === 0 && (
+                                    <div style={{
+                                        backgroundColor: '#fff3cd',
+                                        border: '1px solid #ffc107',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        marginBottom: '10px',
+                                        color: '#856404'
+                                    }}>
+                                        <strong>⚠️ Required:</strong> You must capture at least one product photo before submitting.
+                                    </div>
+                                )}
+                                <div className="photo-section">
+                                    <button
+                                        type="button"
+                                        className="btn-camera"
+                                        onClick={() => setShowCamera(true)}
+                                    >
+                                        📸 Take Photos {isMobile && '(Required)'}
+                                    </button>
+                                    
+                                    {productPhotos.length > 0 && (
+                                        <div className="photos-preview">
+                                            <p className="photos-count">{productPhotos.length} photo(s) captured ✓</p>
+                                            <div className="photos-grid-small">
+                                                {productPhotos.map((photo, index) => (
+                                                    <div key={index} className="photo-thumbnail">
+                                                        <img src={URL.createObjectURL(photo)} alt={`Product ${index + 1}`} />
+                                                        <button
+                                                            type="button"
+                                                            className="remove-thumb-btn"
+                                                            onClick={() => removePhoto(index)}
+                                                            title="Remove photo"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             <div className="modal-actions">
                                 <button 
                                     type="button" 
                                     className="btn-secondary"
-                                    onClick={() => {
-                                        setShowProductModal(false);
-                                        setSelectedProduct(null);
-                                    }}
+                                    onClick={closeProductModal}
                                 >
                                     Cancel
                                 </button>
@@ -1396,6 +1509,15 @@ const FarmerDashboard = () => {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {/* Camera Capture Modal */}
+            {showCamera && (
+                <CameraCapture
+                    onCapture={handleCameraCapture}
+                    onClose={() => setShowCamera(false)}
+                    maxPhotos={5}
+                />
             )}
         </div>
     );
