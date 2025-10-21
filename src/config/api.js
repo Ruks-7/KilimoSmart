@@ -1,11 +1,12 @@
 // API Configuration for KilimoSmart
-// Centralized API endpoint management for development and production
+// Centralized API endpoint management for Vercel deployment
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Base API URL - automatically switches between local and production
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-                     (isDevelopment ? 'http://localhost:5000' : 'https://your-backend-url.onrender.com');
+// Base API URL - Uses same domain on Vercel, localhost for development
+const API_BASE_URL = isDevelopment 
+  ? 'http://localhost:5000' 
+  : ''; // Empty string uses same domain (relative URLs on Vercel)
 
 // API Endpoints
 const API_ENDPOINTS = {

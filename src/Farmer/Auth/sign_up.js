@@ -5,6 +5,9 @@ import './Styling/auth.css';
 import OTPInput from './OTPInput';
 import LocationPicker from '../../components/LocationPicker';
 
+// Import API configuration
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const SignUp = () => {
     const [formData, setFormData] = useState({
         firstName: '',
@@ -143,7 +146,7 @@ const SignUp = () => {
     const sendOTP = async (email) => {
         try {
             // API call to send OTP
-            const response = await axios.post('http://localhost:5000/api/auth/send-otp', {
+            const response = await axios.post(`${API_BASE_URL}/api/auth/send-otp`, {
                 email: email,
                 purpose: 'signup'
             });
@@ -166,7 +169,7 @@ const SignUp = () => {
 
         try {
             // Step 1: Verify OTP
-            const otpResponse = await axios.post('http://localhost:5000/api/auth/verify-otp', {
+            const otpResponse = await axios.post(`${API_BASE_URL}/api/auth/verify-otp`, {
                 email: formData.email,
                 otp: otpCode,
                 purpose: 'signup'
@@ -180,7 +183,7 @@ const SignUp = () => {
 
             // Step 2: Create account after OTP verification
             const response = await axios.post(
-                'http://localhost:5000/api/auth/farmer/signup',
+                `${API_BASE_URL}/api/auth/farmer/signup`,
                 {
                     ...pendingSignupData,
                     emailVerified: true // Mark email as verified
