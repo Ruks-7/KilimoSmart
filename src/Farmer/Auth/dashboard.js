@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CameraCapture from '../../components/CameraCapture';
+import { API_CONFIG } from '../../config/api';
 import './Styling/auth.css';
 import './Styling/dashboard.css';
 
@@ -94,10 +95,10 @@ const FarmerDashboard = () => {
 
             // Fetch farmer's products, orders, payments, and profile in parallel
             const [productsResponse, ordersResponse, paymentsResponse, profileResponse] = await Promise.all([
-                fetch('http://localhost:5000/api/farmer/products', { headers }),
-                fetch('http://localhost:5000/api/farmer/orders', { headers }),
-                fetch('http://localhost:5000/api/farmer/payments', { headers }),
-                fetch('http://localhost:5000/api/farmer/profile', { headers })
+                fetch(API_CONFIG.ENDPOINTS.FARMER.PRODUCTS, { headers }),
+                fetch(API_CONFIG.ENDPOINTS.FARMER.ORDERS, { headers }),
+                fetch(API_CONFIG.ENDPOINTS.FARMER.PAYMENTS, { headers }),
+                fetch(API_CONFIG.ENDPOINTS.FARMER.PROFILE, { headers })
             ]);
 
             // Log responses for debugging
@@ -216,7 +217,7 @@ const FarmerDashboard = () => {
             let shouldRedirectToLogin = false;
             
             if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
-                errorMessage = '⚠️ Cannot connect to backend server. Please ensure the backend is running on http://localhost:5000';
+                errorMessage = '⚠️ Cannot connect to backend server. Please check your internet connection.';
             } else if (error.message.includes('401') || error.message.includes('Unauthorized') || error.message.includes('Token expired')) {
                 errorMessage = '🔒 Your session has expired. Please login again.';
                 shouldRedirectToLogin = true;
@@ -350,7 +351,7 @@ const FarmerDashboard = () => {
                 status: 'available'
             };
 
-            const response = await fetch('http://localhost:5000/api/products', {
+            const response = await fetch(API_CONFIG.ENDPOINTS.FARMER.PRODUCTS, {
                 method: selectedProduct ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -431,7 +432,7 @@ const FarmerDashboard = () => {
                     return;
                 }
 
-                const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
+                const response = await fetch(`${API_CONFIG.ENDPOINTS.FARMER.PRODUCTS}/${productId}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${token}`
