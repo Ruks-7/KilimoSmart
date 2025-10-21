@@ -1,64 +1,56 @@
-// Vercel Serverless Function - Main API Handler
-
 const express = require('express');
 const cors = require('cors');
 
-// Import routes from backend
+// Import routes
 const authRoutes = require('../backend/routes/auth');
 const farmerRoutes = require('../backend/routes/farmer');
 const buyerRoutes = require('../backend/routes/buyer');
 
-// Create Express app
 const app = express();
 
-// Middleware
+// CORS configuration - allow all origins for Vercel
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Health check
+// Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
+  res.json({ 
+    success: true, 
     message: 'KilimoSmart API is running on Vercel',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'production'
+    environment: process.env.NODE_ENV || 'production',
+    timestamp: new Date().toISOString()
   });
 });
 
-// API Routes
+// Mount API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
 
-// Root endpoint
-app.get('/api', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Welcome to KilimoSmart API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/api/health',
-      auth: '/api/auth',
-      farmer: '/api/farmer',
-      buyer: '/api/buyer'
-    }
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('API Error:', err);
+  res.status(500).json({ 
+    success: false, 
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    message: 'API endpoint not found',
+    path: req.path
   });
 });
 
