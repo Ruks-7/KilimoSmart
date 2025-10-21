@@ -16,10 +16,15 @@ const API_ENDPOINTS = {
   AUTH: {
     LOGIN: `${API_BASE_URL}/api/auth/login`,
     SIGNUP: `${API_BASE_URL}/api/auth/signup`,
+    FARMER_SIGNUP: `${API_BASE_URL}/api/auth/farmer/signup`,
+    BUYER_SIGNUP: `${API_BASE_URL}/api/auth/buyer/signup`,
     VERIFY_OTP: `${API_BASE_URL}/api/auth/verify-otp`,
     RESEND_OTP: `${API_BASE_URL}/api/auth/resend-otp`,
+    SEND_OTP: `${API_BASE_URL}/api/auth/send-otp`,
     FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/forgot-password`,
     RESET_PASSWORD: `${API_BASE_URL}/api/auth/reset-password`,
+    FARMER_VERIFY_CREDENTIALS: `${API_BASE_URL}/api/auth/farmer/verify-credentials`,
+    BUYER_VERIFY_CREDENTIALS: `${API_BASE_URL}/api/auth/buyer/verify-credentials`,
   },
   
   // Farmer endpoints

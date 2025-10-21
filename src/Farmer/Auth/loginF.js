@@ -111,7 +111,7 @@ const [formData, setFormData] = useState({
 
     try {
       // Step 1: Verify email and password with backend
-      const response = await axios.post(`${API_CONFIG.ENDPOINTS.AUTH}/farmer/verify-credentials`, {
+      const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.FARMER_VERIFY_CREDENTIALS, {
         email: formData.email,
         password: formData.password
       });
@@ -135,7 +135,7 @@ const [formData, setFormData] = useState({
   const sendOTP = async () => {
     try {
       // API call to send OTP
-      const response = await axios.post(`${API_CONFIG.ENDPOINTS.AUTH}/send-otp`, {
+      const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.SEND_OTP, {
         email: formData.email,
         purpose: 'login'
       });
@@ -155,7 +155,7 @@ const [formData, setFormData] = useState({
 
     try {
       // Verify OTP with backend
-      const response = await axios.post(`${API_CONFIG.ENDPOINTS.AUTH}/verify-otp`, {
+      const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_OTP, {
         email: formData.email,
         otp: otpCode,
         purpose: 'login'

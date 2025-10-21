@@ -144,7 +144,7 @@ const SignUp = () => {
     const sendOTP = async (email) => {
         try {
             // API call to send OTP
-            const response = await axios.post(`${API_CONFIG.ENDPOINTS.AUTH}/send-otp`, {
+            const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.SEND_OTP, {
                 email: email,
                 purpose: 'signup'
             });
@@ -167,7 +167,7 @@ const SignUp = () => {
 
         try {
             // Step 1: Verify OTP
-            const otpResponse = await axios.post(`${API_CONFIG.ENDPOINTS.AUTH}/verify-otp`, {
+            const otpResponse = await axios.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_OTP, {
                 email: formData.email,
                 otp: otpCode,
                 purpose: 'signup'
@@ -181,7 +181,7 @@ const SignUp = () => {
 
             // Step 2: Create account after OTP verification
             const response = await axios.post(
-                `${API_CONFIG.ENDPOINTS.AUTH}/farmer/signup`,
+                API_CONFIG.ENDPOINTS.AUTH.FARMER_SIGNUP,
                 {
                     ...pendingSignupData,
                     emailVerified: true // Mark email as verified
