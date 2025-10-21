@@ -1,4 +1,3 @@
-// API Configuration for KilimoSmart
 // Centralized API endpoint management for Vercel deployment
 
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -77,5 +76,11 @@ export const apiCall = async (url, options = {}) => {
   }
 };
 
-export default API_ENDPOINTS;
-export { API_BASE_URL };
+// Export as both API_CONFIG and API_ENDPOINTS for compatibility
+const API_CONFIG = {
+  BASE_URL: API_BASE_URL,
+  ENDPOINTS: API_ENDPOINTS
+};
+
+export { API_CONFIG, API_ENDPOINTS, API_BASE_URL };
+export default API_CONFIG;
