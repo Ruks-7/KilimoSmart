@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './CameraCapture.css';
 
 const CameraCapture = ({ onCapture, onClose, maxPhotos = 5 }) => {
-  const [stream, setStream] = useState(null);
   const [capturedPhotos, setCapturedPhotos] = useState([]);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState('environment'); // 'user' for front, 'environment' for back
@@ -13,12 +12,11 @@ const CameraCapture = ({ onCapture, onClose, maxPhotos = 5 }) => {
   const canvasRef = useRef(null);
 
   const stopCamera = useCallback(() => {
-    setStream((currentStream) => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-      return null;
-    });
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
     setIsCameraActive(false);
   }, []);
 
@@ -40,7 +38,6 @@ const CameraCapture = ({ onCapture, onClose, maxPhotos = 5 }) => {
       };
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(mediaStream);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -71,7 +68,7 @@ const CameraCapture = ({ onCapture, onClose, maxPhotos = 5 }) => {
     return () => {
       stopCamera();
     };
-  }, [facingMode]); // Only depend on facingMode, not the functions
+  }, [facingMode, startCamera, stopCamera]);
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current || capturedPhotos.length >= maxPhotos) {
