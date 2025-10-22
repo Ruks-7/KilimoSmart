@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authenticateToken, requireFarmer } = require('../middleware/auth');
-
-// Import upload middleware for product photo uploads
-const upload = require('../middleware/upload');
+const cloudinary = require('cloudinary').v2;
+const { isCloudinaryConfigured } = require('../config/cloudinary');
 
 // Apply authentication middleware to all farmer routes
 router.use(authenticateToken);
@@ -165,12 +164,12 @@ router.get('/payments', async (req, res) => {
 /**
  * POST /api/farmer/products
  * Create a new product with photo uploads
+ * Serverless-compatible: uploads directly to Cloudinary without temp files
  */
-router.post('/products', upload.array('photos', 10), async (req, res) => {
+router.post('/products', async (req, res) => {
   try {
     const farmerId = req.user.farmerId || req.user.userId;
     const {
-      farmer_id,
       product_name,
       category,
       description,
@@ -204,6 +203,14 @@ router.post('/products', upload.array('photos', 10), async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'price_per_unit must be a positive number',
+      });
+    }
+
+    // Check if Cloudinary is configured for uploads
+    if (!isCloudinaryConfigured && req.files && req.files.length > 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'File upload service not available. Cloudinary is not configured.',
       });
     }
 
@@ -255,47 +262,78 @@ router.post('/products', upload.array('photos', 10), async (req, res) => {
 
     // Handle photo uploads if any files were uploaded
     const photoResults = [];
-    if (req.files && req.files.length > 0) {
+    if (req.files && (req.files.photos || req.files.photo)) {
+      const photoFiles = Array.isArray(req.files.photos) 
+        ? req.files.photos 
+        : req.files.photo 
+          ? Array.isArray(req.files.photo) 
+            ? req.files.photo 
+            : [req.files.photo]
+          : [];
+
       const mainPhotoIdx = parseInt(main_photo_index) || 0;
       
-      for (let i = 0; i < req.files.length; i++) {
-        const file = req.files[i];
+      for (let i = 0; i < photoFiles.length; i++) {
+        const file = photoFiles[i];
         const isMainPhoto = i === mainPhotoIdx;
         
-        // Cloudinary provides the secure URL directly
-        const photoUrl = file.path; // Cloudinary secure URL (HTTPS)
-        
-        console.log(`📸 Uploading photo ${i + 1}/${req.files.length}:`, {
-          url: photoUrl,
-          isMain: isMainPhoto
-        });
-        
-        const photoInsert = await query(
-          `INSERT INTO PRODUCT_PHOTOS (
-            product_id,
-            photo_url,
-            is_main_photo,
-            photo_timestamp
-          ) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-          RETURNING 
-            photo_id as id,
-            photo_url as url,
-            is_main_photo as "isMainPhoto",
-            upload_date as "uploadDate"`,
-          [productId, photoUrl, isMainPhoto]
-        );
-        
-        photoResults.push(photoInsert.rows[0]);
+        try {
+          // Upload directly to Cloudinary from buffer (no temp files needed)
+          const uploadResult = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              {
+                folder: `kilimosmart/products/${farmerId}`,
+                resource_type: 'auto',
+                public_id: `product_${productId}_photo_${i + 1}_${Date.now()}`,
+                timeout: 60000
+              },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            );
+            stream.end(file.data);
+          });
+
+          const photoUrl = uploadResult.secure_url;
+          
+          console.log(`📸 Uploaded photo ${i + 1}/${photoFiles.length}:`, {
+            url: photoUrl,
+            isMain: isMainPhoto
+          });
+          
+          const photoInsert = await query(
+            `INSERT INTO PRODUCT_PHOTOS (
+              product_id,
+              photo_url,
+              is_main_photo,
+              photo_timestamp
+            ) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+            RETURNING 
+              photo_id as id,
+              product_id as "productId",
+              photo_url as url,
+              is_main_photo as "isMainPhoto",
+              photo_timestamp as "timestamp"`,
+            [productId, photoUrl, isMainPhoto]
+          );
+          
+          photoResults.push(photoInsert.rows[0]);
+        } catch (uploadError) {
+          console.error(`❌ Photo upload failed for file ${i + 1}:`, uploadError);
+          // Continue with next file instead of failing entire request
+        }
       }
-      console.log(`✅ Successfully uploaded ${photoResults.length} photos`);
     }
+
+    console.log(`✅ Product created: ${productId} with ${photoResults.length} photos`);
 
     return res.status(201).json({
       success: true,
       message: 'Product created successfully',
       product: {
         ...product,
-        photos: photoResults
+        photos: photoResults,
       },
     });
   } catch (error) {

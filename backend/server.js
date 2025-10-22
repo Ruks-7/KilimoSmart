@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fileUpload = require('express-fileupload');
 require('dotenv').config();
 
 // Import routes
@@ -36,6 +37,13 @@ app.use(cors({
 
 app.use(express.json({ limit: '50mb' })); // Increased limit for image uploads
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Serverless-compatible file upload handling
+app.use(fileUpload({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
+  useTempFiles: false, // Don't use temp files on Vercel
+  safeFileNames: true,
+  preserveExtension: true
+}));
 
 // Request logging middleware (for development)
 if (process.env.NODE_ENV === 'development') {
