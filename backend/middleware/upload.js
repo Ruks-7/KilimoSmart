@@ -48,7 +48,6 @@ const upload = multer({
   }
 });
 
-module.exports = {
-  upload,
-  isCloudinaryConfigured
-};
+// Export the upload instance directly, with configuration status attached
+module.exports = upload;
+module.exports.isCloudinaryConfigured = isCloudinaryConfigured;
