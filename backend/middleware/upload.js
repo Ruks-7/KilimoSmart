@@ -1,46 +1,50 @@
 const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary');
+const { cloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
 
-// Configure Cloudinary storage
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'KilimoSmart/Product_Photos', // Folder in Cloudinary
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    transformation: [
-      { width: 1920, height: 1080, crop: 'limit' }, // Limit max size
-      { quality: 'auto' } // Auto quality optimization
-    ],
-    public_id: (req, file) => {
-      // Generate unique filename: farmerId_timestamp_random
+let storage;
+
+if (isCloudinaryConfigured) {
+  console.log('✅ Using Cloudinary storage');
+  
+  storage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: async (req, file) => {
       const farmerId = req.user?.farmerId || req.user?.userId || 'unknown';
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 8);
-      return `${farmerId}_${timestamp}_${randomStr}`;
+      
+      return {
+        folder: 'KilimoSmart/Product_Photos',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+        public_id: `farmer_${farmerId}_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        transformation: [
+          { width: 1920, height: 1080, crop: 'limit' },
+          { quality: 'auto' },
+          { fetch_format: 'auto' }
+        ]
+      };
     }
-  }
-});
+  });
+} else {
+  console.warn('⚠️ Cloudinary not configured, using memory storage');
+  storage = multer.memoryStorage();
+}
 
-// File filter to accept only images
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp/;
-  const mimetype = allowedTypes.test(file.mimetype);
-
-  if (mimetype) {
-    return cb(null, true);
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp)'));
+    cb(new Error('Invalid file type. Only images allowed.'), false);
   }
 };
 
-// Configure multer with Cloudinary storage
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB per file
-    files: 10 // Maximum 10 files
+    fileSize: 5 * 1024 * 1024, // 5MB
+    files: 10
   }
 });
 
