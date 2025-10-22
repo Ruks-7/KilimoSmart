@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authenticateToken, requireFarmer } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 // Apply authentication middleware to all farmer routes
 router.use(authenticateToken);
@@ -15,29 +16,48 @@ router.get('/products', async (req, res) => {
 
     const result = await query(
       `SELECT 
-        product_id as id,
-        product_name as name,
-        category,
-        description,
-        quantity_available as quantity,
-        unit_of_measure as unit,
-        price_per_unit as price,
-        harvest_date as "harvestDate",
-        expiry_date as "expiryDate",
-        is_organic as "isOrganic",
-        status,
-        created_at as "createdAt",
-        updated_at as "updatedAt"
-      FROM PRODUCT 
-      WHERE farmer_id = $1
-      ORDER BY created_at DESC`,
+        p.product_id as id,
+        p.product_name as name,
+        p.category,
+        p.description,
+        p.quantity_available as quantity,
+        p.unit_of_measure as unit,
+        p.price_per_unit as price,
+        p.harvest_date as "harvestDate",
+        p.expiry_date as "expiryDate",
+        p.is_organic as "isOrganic",
+        p.status,
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt"
+      FROM PRODUCT p
+      WHERE p.farmer_id = $1
+      ORDER BY p.created_at DESC`,
       [farmerId]
     );
 
+    // Fetch photos for all products
+    const products = result.rows;
+    for (let product of products) {
+      const photosResult = await query(
+        `SELECT 
+          photo_id as id,
+          photo_url as url,
+          is_main_photo as "isMainPhoto",
+          upload_date as "uploadDate",
+          gps_latitude as latitude,
+          gps_longitude as longitude
+        FROM PRODUCT_PHOTOS
+        WHERE product_id = $1
+        ORDER BY is_main_photo DESC, upload_date ASC`,
+        [product.id]
+      );
+      product.photos = photosResult.rows;
+    }
+
     return res.status(200).json({
       success: true,
-      products: result.rows,
-      count: result.rows.length,
+      products: products,
+      count: products.length,
     });
   } catch (error) {
     console.error('Get products error:', error);
@@ -142,9 +162,9 @@ router.get('/payments', async (req, res) => {
 
 /**
  * POST /api/farmer/products
- * Create a new product
+ * Create a new product with photo uploads
  */
-router.post('/products', async (req, res) => {
+router.post('/products', upload.array('photos', 10), async (req, res) => {
   try {
     const farmerId = req.user.farmerId || req.user.userId;
     const {
@@ -159,6 +179,7 @@ router.post('/products', async (req, res) => {
       expiry_date,
       is_organic,
       status,
+      main_photo_index,
     } = req.body;
 
     // Validate required fields
@@ -184,6 +205,7 @@ router.post('/products', async (req, res) => {
       });
     }
 
+    // Insert product first
     const result = await query(
       `INSERT INTO PRODUCT (
         farmer_id, 
@@ -226,10 +248,47 @@ router.post('/products', async (req, res) => {
       ]
     );
 
+    const product = result.rows[0];
+    const productId = product.id;
+
+    // Handle photo uploads if any files were uploaded
+    const photoResults = [];
+    if (req.files && req.files.length > 0) {
+      const mainPhotoIdx = parseInt(main_photo_index) || 0;
+      
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        const isMainPhoto = i === mainPhotoIdx;
+        
+        // Store relative path for photo_url
+        const photoUrl = `/uploads/product_photos/${file.filename}`;
+        
+        const photoInsert = await query(
+          `INSERT INTO PRODUCT_PHOTOS (
+            product_id,
+            photo_url,
+            is_main_photo,
+            photo_timestamp
+          ) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+          RETURNING 
+            photo_id as id,
+            photo_url as url,
+            is_main_photo as "isMainPhoto",
+            upload_date as "uploadDate"`,
+          [productId, photoUrl, isMainPhoto]
+        );
+        
+        photoResults.push(photoInsert.rows[0]);
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      product: result.rows[0],
+      product: {
+        ...product,
+        photos: photoResults
+      },
     });
   } catch (error) {
     console.error('Create product error:', error);
