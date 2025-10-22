@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authenticateToken, requireFarmer } = require('../middleware/auth');
+
+// Import upload middleware for product photo uploads
 const upload = require('../middleware/upload');
 
 // Apply authentication middleware to all farmer routes
@@ -263,6 +265,11 @@ router.post('/products', upload.array('photos', 10), async (req, res) => {
         // Cloudinary provides the secure URL directly
         const photoUrl = file.path; // Cloudinary secure URL (HTTPS)
         
+        console.log(`📸 Uploading photo ${i + 1}/${req.files.length}:`, {
+          url: photoUrl,
+          isMain: isMainPhoto
+        });
+        
         const photoInsert = await query(
           `INSERT INTO PRODUCT_PHOTOS (
             product_id,
@@ -280,6 +287,7 @@ router.post('/products', upload.array('photos', 10), async (req, res) => {
         
         photoResults.push(photoInsert.rows[0]);
       }
+      console.log(`✅ Successfully uploaded ${photoResults.length} photos`);
     }
 
     return res.status(201).json({
