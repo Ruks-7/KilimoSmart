@@ -29,6 +29,16 @@ app.use(fileUpload({
 }));
 
 // Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'KilimoSmart API is running on Vercel',
+    environment: process.env.NODE_ENV || 'production',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Also handle /api/health for backwards compatibility
 app.get('/api/health', (req, res) => {
   res.json({ 
     success: true, 
@@ -42,6 +52,11 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
+
+// Also mount routes without /api prefix (for Vercel routing)
+app.use('/auth', authRoutes);
+app.use('/farmer', farmerRoutes);
+app.use('/buyer', buyerRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
