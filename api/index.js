@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fileUpload = require('express-fileupload');
 
 // Import routes
 const authRoutes = require('../backend/routes/auth');
@@ -19,6 +20,13 @@ app.use(cors({
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Serverless-compatible file upload handling
+app.use(fileUpload({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per file
+  useTempFiles: false, // Don't use temp files on Vercel
+  safeFileNames: true,
+  preserveExtension: true
+}));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
