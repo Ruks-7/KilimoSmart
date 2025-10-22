@@ -20,6 +20,10 @@ src/Database Schema
 # production
 /build
 
+# uploads
+/backend/uploads/product_photos/*
+!/backend/uploads/product_photos/.gitkeep
+
 # misc
 .DS_Store
 .env.local

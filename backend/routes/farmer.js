@@ -260,8 +260,8 @@ router.post('/products', upload.array('photos', 10), async (req, res) => {
         const file = req.files[i];
         const isMainPhoto = i === mainPhotoIdx;
         
-        // Store relative path for photo_url
-        const photoUrl = `/uploads/product_photos/${file.filename}`;
+        // Cloudinary provides the secure URL directly
+        const photoUrl = file.path; // Cloudinary secure URL (HTTPS)
         
         const photoInsert = await query(
           `INSERT INTO PRODUCT_PHOTOS (

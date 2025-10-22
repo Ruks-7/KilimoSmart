@@ -169,7 +169,7 @@ const FarmerDashboard = () => {
                 reputationScore: fetchedProfile.reputationScore || 0
             });
 
-            // Format products data (already in correct format from API)
+            // Format products data
             const formattedProducts = fetchedProducts.map(product => ({
                 id: product.id,
                 name: product.name,
@@ -337,27 +337,42 @@ const FarmerDashboard = () => {
                 return;
             }
 
-            const productData = {
-                farmer_id: farmerId,
-                product_name: productForm.productName,
-                category: productForm.category,
-                description: productForm.description,
-                quantity_available: parseFloat(productForm.quantity),
-                unit_of_measure: productForm.unit,
-                price_per_unit: parseFloat(productForm.pricePerUnit),
-                harvest_date: productForm.harvestDate || null,
-                expiry_date: productForm.expiryDate || null,
-                is_organic: productForm.isOrganic,
-                status: 'available'
-            };
+            // Create FormData to handle both product data and photos
+            const formData = new FormData();
+            
+            // Add product data
+            formData.append('farmer_id', farmerId);
+            formData.append('product_name', productForm.productName);
+            formData.append('category', productForm.category);
+            formData.append('description', productForm.description);
+            formData.append('quantity_available', parseFloat(productForm.quantity));
+            formData.append('unit_of_measure', productForm.unit);
+            formData.append('price_per_unit', parseFloat(productForm.pricePerUnit));
+            formData.append('harvest_date', productForm.harvestDate || '');
+            formData.append('expiry_date', productForm.expiryDate || '');
+            formData.append('is_organic', productForm.isOrganic);
+            formData.append('status', 'available');
+            
+            if (selectedProduct) {
+                formData.append('product_id', selectedProduct.id);
+            }
+            
+            // Add photos to FormData
+            productPhotos.forEach((photo, index) => {
+                formData.append('photos', photo);
+                // Mark the first photo as the main photo
+                if (index === 0) {
+                    formData.append('main_photo_index', '0');
+                }
+            });
 
             const response = await fetch(API_CONFIG.ENDPOINTS.FARMER.PRODUCTS, {
                 method: selectedProduct ? 'PUT' : 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
+                    // Note: Don't set Content-Type header, browser will set it with boundary for multipart/form-data
                 },
-                body: JSON.stringify(selectedProduct ? { ...productData, product_id: selectedProduct.id } : productData)
+                body: formData
             });
 
             if (!response.ok) {
@@ -385,6 +400,7 @@ const FarmerDashboard = () => {
                 harvestDate: '',
                 expiryDate: ''
             });
+            setProductPhotos([]); // Clear photos
             setSelectedProduct(null);
             setShowProductModal(false);
             fetchDashboardData();
