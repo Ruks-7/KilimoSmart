@@ -8,7 +8,7 @@ import './Styling/dashboard.css';
 
 const FarmerDashboard = () => {
     const navigate = useNavigate();
-    const { getLocation, currentLocation } = useLocation();
+    const { getLocation } = useLocation();
     const [activeTab, setActiveTab] = useState('overview');
     const [loading, setLoading] = useState(true);
     const [farmerData, setFarmerData] = useState(null);
@@ -326,9 +326,14 @@ const FarmerDashboard = () => {
         e.preventDefault();
         
         // Get current GPS location before submitting
+        let locationData = null;
         try {
-            await getLocation();
-            console.log('📍 Location captured');
+            const result = await getLocation();
+            console.log('📍 Location capture result:', result);
+            if (result.success && result.location) {
+                locationData = result.location;
+                console.log('📍 Location data captured:', locationData);
+            }
         } catch (err) {
             console.warn('⚠️ Could not capture GPS location:', err);
             // Continue even if location fails - it's not mandatory
@@ -373,15 +378,15 @@ const FarmerDashboard = () => {
             formData.append('is_organic', productForm.isOrganic);
             formData.append('status', 'available');
             
-            // Add GPS location if available
-            if (currentLocation) {
-                formData.append('gps_latitude', currentLocation.latitude);
-                formData.append('gps_longitude', currentLocation.longitude);
-                formData.append('gps_accuracy', currentLocation.accuracy || '');
+            // Add GPS location if available (use the returned data, not state)
+            if (locationData) {
+                formData.append('gps_latitude', locationData.latitude);
+                formData.append('gps_longitude', locationData.longitude);
+                formData.append('gps_accuracy', locationData.accuracy || '');
                 console.log('📍 GPS Location added to form:', {
-                    latitude: currentLocation.latitude,
-                    longitude: currentLocation.longitude,
-                    accuracy: currentLocation.accuracy
+                    latitude: locationData.latitude,
+                    longitude: locationData.longitude,
+                    accuracy: locationData.accuracy
                 });
             }
             
