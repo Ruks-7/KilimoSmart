@@ -8,8 +8,6 @@ import './Styling/dashboard.css';
 
 const FarmerDashboard = () => {
     const navigate = useNavigate();
-    const { getLocation, currentLocation } = useLocation();
-    
     const [activeTab, setActiveTab] = useState('overview');
     const [loading, setLoading] = useState(true);
     const [farmerData, setFarmerData] = useState(null);
