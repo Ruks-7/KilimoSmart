@@ -270,6 +270,17 @@ router.post('/products', async (req, res) => {
       reqBodyKeys: Object.keys(req.body),
     });
 
+    // Extract GPS location from request body
+    const gps_latitude = req.body.gps_latitude ? parseFloat(req.body.gps_latitude) : null;
+    const gps_longitude = req.body.gps_longitude ? parseFloat(req.body.gps_longitude) : null;
+    const gps_accuracy = req.body.gps_accuracy ? parseFloat(req.body.gps_accuracy) : null;
+
+    console.log(`📍 GPS Location received:`, {
+      gps_latitude,
+      gps_longitude,
+      gps_accuracy
+    });
+
     // Handle photo uploads if any files were uploaded
     const photoResults = [];
     if (req.files && (req.files.photos || req.files.photo)) {
@@ -325,15 +336,21 @@ router.post('/products', async (req, res) => {
               product_id,
               photo_url,
               is_main_photo,
+              gps_latitude,
+              gps_longitude,
+              gps_accuracy,
               photo_timestamp
-            ) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+            ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
             RETURNING 
               photo_id as id,
               product_id as "productId",
               photo_url as url,
               is_main_photo as "isMainPhoto",
+              gps_latitude as latitude,
+              gps_longitude as longitude,
+              gps_accuracy as accuracy,
               photo_timestamp as "timestamp"`,
-            [productId, photoUrl, isMainPhoto]
+            [productId, photoUrl, isMainPhoto, gps_latitude, gps_longitude, gps_accuracy]
           );
           
           photoResults.push(photoInsert.rows[0]);

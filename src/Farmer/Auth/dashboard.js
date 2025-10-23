@@ -2,11 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CameraCapture from '../../components/CameraCapture';
 import { API_CONFIG } from '../../config/api';
+import { useLocation } from '../../hooks/useLocation';
 import './Styling/auth.css';
 import './Styling/dashboard.css';
 
 const FarmerDashboard = () => {
     const navigate = useNavigate();
+    const { getLocation, currentLocation } = useLocation();
+    
     const [activeTab, setActiveTab] = useState('overview');
     const [loading, setLoading] = useState(true);
     const [farmerData, setFarmerData] = useState(null);
@@ -280,10 +283,19 @@ const FarmerDashboard = () => {
         }));
     };
 
-    const handleCameraCapture = (photos) => {
+    const handleCameraCapture = async (photos) => {
         setProductPhotos(photos);
         setShowCamera(false);
         showNotificationMessage(`${photos.length} photo(s) captured successfully!`, 'success');
+        
+        // Capture GPS location when photos are captured
+        try {
+            console.log('📍 Capturing GPS location for photos...');
+            await getLocation();
+        } catch (error) {
+            console.warn('⚠️ Could not capture GPS location:', error);
+            showNotificationMessage('Location capture failed (optional)', 'info');
+        }
     };
 
     const removePhoto = (index) => {
@@ -313,6 +325,15 @@ const FarmerDashboard = () => {
 
     const handleAddProduct = async (e) => {
         e.preventDefault();
+        
+        // Get current GPS location before submitting
+        try {
+            await getLocation();
+            console.log('📍 Location captured');
+        } catch (err) {
+            console.warn('⚠️ Could not capture GPS location:', err);
+            // Continue even if location fails - it's not mandatory
+        }
         
         // Validate that photos are captured (mandatory on mobile)
         if (isMobile && productPhotos.length === 0) {
@@ -352,6 +373,18 @@ const FarmerDashboard = () => {
             formData.append('expiry_date', productForm.expiryDate || '');
             formData.append('is_organic', productForm.isOrganic);
             formData.append('status', 'available');
+            
+            // Add GPS location if available
+            if (currentLocation) {
+                formData.append('gps_latitude', currentLocation.latitude);
+                formData.append('gps_longitude', currentLocation.longitude);
+                formData.append('gps_accuracy', currentLocation.accuracy || '');
+                console.log('📍 GPS Location added to form:', {
+                    latitude: currentLocation.latitude,
+                    longitude: currentLocation.longitude,
+                    accuracy: currentLocation.accuracy
+                });
+            }
             
             if (selectedProduct) {
                 formData.append('product_id', selectedProduct.id);
