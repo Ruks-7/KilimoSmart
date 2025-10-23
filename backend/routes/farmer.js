@@ -273,13 +273,13 @@ router.post('/products', async (req, res) => {
     // Handle photo uploads if any files were uploaded
     const photoResults = [];
     if (req.files && (req.files.photos || req.files.photo)) {
-      const photoFiles = Array.isArray(req.files.photos) 
-        ? req.files.photos 
-        : req.files.photo 
-          ? Array.isArray(req.files.photo) 
-            ? req.files.photo 
-            : [req.files.photo]
-          : [];
+      // Get files - handle both single file (object) and multiple files (array)
+      let photoFiles = [];
+      if (req.files.photos) {
+        photoFiles = Array.isArray(req.files.photos) ? req.files.photos : [req.files.photos];
+      } else if (req.files.photo) {
+        photoFiles = Array.isArray(req.files.photo) ? req.files.photo : [req.files.photo];
+      }
 
       console.log(`📸 Found ${photoFiles.length} photos to upload`);
 
