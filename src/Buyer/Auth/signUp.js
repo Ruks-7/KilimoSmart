@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Styling/auth.css';
 import { FaUser, FaEnvelope, FaLock, FaIdCard, FaPhone, FaEye, FaEyeSlash, FaCheck, FaTimes } from 'react-icons/fa';
+import API_CONFIG from '../../config/api';
+import OTPInput from './OTPInput';
 
 const SignUp = () => {
+    const [step, setStep] = useState('form'); // 'form' or 'otp'
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -133,7 +136,112 @@ const SignUp = () => {
         setValidationState(newValidationState);
         return isFormValid && agreedToTerms;
     };
-    
+
+    const handleVerifyOtp = async (otpCode) => {
+        setIsLoading(true);
+        setError('');
+        
+        try {
+            console.log('🔐 Verifying OTP...');
+            const verifyResponse = await fetch(`${API_CONFIG.ENDPOINTS.AUTH.VERIFY_OTP}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    otp: otpCode,
+                    purpose: 'signup'
+                }),
+            });
+            
+            const verifyData = await verifyResponse.json();
+            
+            if (!verifyResponse.ok) {
+                setError(verifyData.message || 'Invalid OTP. Please try again.');
+                setIsLoading(false);
+                return;
+            }
+            
+            console.log('✅ OTP verified successfully');
+            
+            // Get token from verification response
+            const token = verifyData.token;
+            const user = verifyData.user;
+            
+            // Store auth token and user data
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('userId', user.user_id);
+            localStorage.setItem('userType', user.user_type);
+            localStorage.setItem('userEmail', user.email);
+            localStorage.setItem('userFirstName', user.first_name);
+            localStorage.setItem('userLastName', user.last_name);
+            
+            // If buyer data is available, store it
+            if (verifyData.buyer) {
+                localStorage.setItem('buyerId', verifyData.buyer.buyer_id);
+            }
+            
+            setSuccess('Email verified successfully! Redirecting to dashboard...');
+            
+            // Reset form
+            setFormData({
+                firstName: '',
+                lastName: '',
+                email: '',
+                nationalId: '',
+                phoneNumber: '',
+                password: '',
+                confirmPassword: ''
+            });
+            setValidationState({});
+            setAgreedToTerms(false);
+            
+            // Redirect to buyer dashboard after 2 seconds
+            setTimeout(() => {
+                navigate('/buyer-dashboard');
+            }, 2000);
+            
+        } catch (error) {
+            console.error('❌ OTP verification error:', error);
+            setError('Verification failed. Please check your connection and try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        setIsLoading(true);
+        setError('');
+        
+        try {
+            console.log('🔄 Resending OTP...');
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.AUTH.RESEND_OTP}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    purpose: 'signup'
+                }),
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                setError(data.message || 'Failed to resend OTP. Please try again.');
+            } else {
+                console.log('✅ OTP resent successfully');
+            }
+        } catch (error) {
+            console.error('❌ Resend OTP error:', error);
+            setError('Failed to resend OTP. Please check your connection and try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -151,72 +259,77 @@ const SignUp = () => {
         setError('');
         setSuccess('');
         
-        // try {
-        //     // Simulate API call - replace with actual API endpoint
-        //     const response = await fetch('/api/auth/register', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json',
-        //         },
-        //         body: JSON.stringify({
-        //             firstName: formData.firstName,
-        //             lastName: formData.lastName,
-        //             email: formData.email,
-        //             nationalId: formData.nationalId,
-        //             phoneNumber: formData.phoneNumber,
-        //             password: formData.password,
-        //             role: 'farmer'
-        //         }),
-        //     });
+        try {
+            // Step 1: Create account
+            console.log('📝 Creating account...');
+            const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.BUYER_SIGNUP, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    email: formData.email,
+                    nationalId: formData.nationalId,
+                    phoneNumber: formData.phoneNumber,
+                    password: formData.password,
+                    businessName: formData.firstName + ' ' + formData.lastName + '\'s Business',
+                    businessType: 'retail',
+                    deliveryAddress: '',
+                    city: '',
+                }),
+            });
             
-        //     // Simulate network delay
-        //     await new Promise(resolve => setTimeout(resolve, 2000));
+            const data = await response.json();
             
-        //     // Mock successful response
-        //     const mockUser = {
-        //         id: Date.now().toString(),
-        //         firstName: formData.firstName,
-        //         lastName: formData.lastName,
-        //         email: formData.email,
-        //         nationalId: formData.nationalId,
-        //         phoneNumber: formData.phoneNumber,
-        //         role: 'farmer',
-        //         verified: false
-        //     };
+            if (!response.ok) {
+                setError(data.message || 'Registration failed. Please try again.');
+                setIsLoading(false);
+                return;
+            }
             
-        //     console.log('Registration successful:', mockUser);
+            console.log('✅ Account created, sending OTP...');
             
-        //     setSuccess('Account created successfully! Redirecting to login...');
+            // Step 2: Send OTP to email
+            try {
+                const otpResponse = await fetch(`${API_CONFIG.ENDPOINTS.AUTH.SEND_OTP}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: formData.email,
+                        purpose: 'signup'
+                    }),
+                });
+                
+                if (!otpResponse.ok) {
+                    console.warn('⚠️ OTP send failed, but account was created. Proceeding to dashboard.');
+                    // Account created successfully, show OTP screen anyway
+                }
+                
+                console.log('✅ OTP sent successfully');
+                setSuccess('Account created! Check your email for the OTP.');
+                setStep('otp');
+                
+            } catch (otpError) {
+                console.error('❌ OTP send error:', otpError);
+                setSuccess('Account created! Check your email for the OTP.');
+                setStep('otp');
+            }
             
-        //     // Reset form
-        //     setFormData({
-        //         firstName: '',
-        //         lastName: '',
-        //         email: '',
-        //         nationalId: '',
-        //         phoneNumber: '',
-        //         password: '',
-        //         confirmPassword: ''
-        //     });
-        //     setValidationState({});
-        //     setAgreedToTerms(false);
-            
-        //     // Redirect to login after 2 seconds
-        //     setTimeout(() => {
-        //         navigate('/login', { 
-        //             state: { 
-        //                 message: 'Account created successfully! Please log in.',
-        //                 email: formData.email 
-        //             }
-        //         });
-        //     }, 2000);
-            
-        // } catch (error) {
-        //     console.error('Registration error:', error);
-        //     setError('Registration failed. Please try again.');
-        // } finally {
-        //     setIsLoading(false);
-        // }
+        } catch (error) {
+            console.error('❌ Registration error:', error);
+            setError('Registration failed. Please check your connection and try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleBackToForm = () => {
+        setStep('form');
+        setError('');
     };
     
     const handleLoginRedirect = (e) => {
@@ -237,271 +350,299 @@ const SignUp = () => {
                 <p>Join our community of farmers and buyers</p>
             </div>
             
-            <form className="auth-form signup-form" onSubmit={handleSubmit}>
-                <div className="name-row">
-                    <div className="form-group">
-                        <label htmlFor="firstName">
-                            <FaUser className="input-icon" /> First Name
-                        </label>
-                        <div className="input-wrapper">
-                            <input 
-                                type="text" 
-                                id="firstName" 
-                                name="firstName" 
-                                value={formData.firstName}
-                                onChange={handleChange}
-                                placeholder="Enter first name"
-                                className={getInputClassName('firstName')}
-                                disabled={isLoading}
-                                required 
-                            />
-                            {validationState.firstName !== null && (
-                                <span className={`validation-icon ${validationState.firstName ? 'valid' : 'invalid'}`}>
-                                    {validationState.firstName ? <FaCheck /> : <FaTimes />}
+            {step === 'form' ? (
+                <form className="auth-form signup-form" onSubmit={handleSubmit}>
+                    <div className="name-row">
+                        <div className="form-group">
+                            <label htmlFor="firstName">
+                                <FaUser className="input-icon" /> First Name
+                            </label>
+                            <div className="input-wrapper">
+                                <input 
+                                    type="text" 
+                                    id="firstName" 
+                                    name="firstName" 
+                                    value={formData.firstName}
+                                    onChange={handleChange}
+                                    placeholder="Enter first name"
+                                    className={getInputClassName('firstName')}
+                                    disabled={isLoading}
+                                    required 
+                                />
+                                {validationState.firstName !== null && (
+                                    <span className={`validation-icon ${validationState.firstName ? 'valid' : 'invalid'}`}>
+                                        {validationState.firstName ? <FaCheck /> : <FaTimes />}
+                                    </span>
+                                )}
+                            </div>
+                            {validationState.firstName === false && (
+                                <span className="error-message">
+                                    {getFieldErrorMessage('firstName', formData.firstName)}
                                 </span>
                             )}
                         </div>
-                        {validationState.firstName === false && (
+                        
+                        <div className="form-group">
+                            <label htmlFor="lastName">
+                                <FaUser className="input-icon" /> Last Name
+                            </label>
+                            <div className="input-wrapper">
+                                <input 
+                                    type="text" 
+                                    id="lastName" 
+                                    name="lastName" 
+                                    value={formData.lastName}
+                                    onChange={handleChange}
+                                    placeholder="Enter last name"
+                                    className={getInputClassName('lastName')}
+                                    disabled={isLoading}
+                                    required 
+                                />
+                                {validationState.lastName !== null && (
+                                    <span className={`validation-icon ${validationState.lastName ? 'valid' : 'invalid'}`}>
+                                        {validationState.lastName ? <FaCheck /> : <FaTimes />}
+                                    </span>
+                                )}
+                            </div>
+                            {validationState.lastName === false && (
+                                <span className="error-message">
+                                    {getFieldErrorMessage('lastName', formData.lastName)}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="form-group">
+                        <label htmlFor="email">
+                            <FaEnvelope className="input-icon" /> Email Address
+                        </label>
+                        <div className="input-wrapper">
+                            <input 
+                                type="email" 
+                                id="email" 
+                                name="email" 
+                                value={formData.email}
+                                onChange={handleChange}
+                                placeholder="Enter email address"
+                                className={getInputClassName('email')}
+                                disabled={isLoading}
+                                required 
+                            />
+                            {validationState.email !== null && (
+                                <span className={`validation-icon ${validationState.email ? 'valid' : 'invalid'}`}>
+                                    {validationState.email ? <FaCheck /> : <FaTimes />}
+                                </span>
+                            )}
+                        </div>
+                        {validationState.email === false && (
                             <span className="error-message">
-                                {getFieldErrorMessage('firstName', formData.firstName)}
+                                {getFieldErrorMessage('email', formData.email)}
                             </span>
                         )}
                     </div>
                     
                     <div className="form-group">
-                        <label htmlFor="lastName">
-                            <FaUser className="input-icon" /> Last Name
+                        <label htmlFor="nationalId">
+                            <FaIdCard className="input-icon" /> National ID
                         </label>
                         <div className="input-wrapper">
                             <input 
                                 type="text" 
-                                id="lastName" 
-                                name="lastName" 
-                                value={formData.lastName}
+                                id="nationalId" 
+                                name="nationalId" 
+                                value={formData.nationalId}
                                 onChange={handleChange}
-                                placeholder="Enter last name"
-                                className={getInputClassName('lastName')}
+                                placeholder="Enter National ID"
+                                className={getInputClassName('nationalId')}
                                 disabled={isLoading}
                                 required 
                             />
-                            {validationState.lastName !== null && (
-                                <span className={`validation-icon ${validationState.lastName ? 'valid' : 'invalid'}`}>
-                                    {validationState.lastName ? <FaCheck /> : <FaTimes />}
+                            {validationState.nationalId !== null && (
+                                <span className={`validation-icon ${validationState.nationalId ? 'valid' : 'invalid'}`}>
+                                    {validationState.nationalId ? <FaCheck /> : <FaTimes />}
                                 </span>
                             )}
                         </div>
-                        {validationState.lastName === false && (
+                        {validationState.nationalId === false && (
                             <span className="error-message">
-                                {getFieldErrorMessage('lastName', formData.lastName)}
+                                {getFieldErrorMessage('nationalId', formData.nationalId)}
                             </span>
                         )}
                     </div>
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="email">
-                        <FaEnvelope className="input-icon" /> Email Address
-                    </label>
-                    <div className="input-wrapper">
-                        <input 
-                            type="email" 
-                            id="email" 
-                            name="email" 
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="Enter email address"
-                            className={getInputClassName('email')}
-                            disabled={isLoading}
-                            required 
-                        />
-                        {validationState.email !== null && (
-                            <span className={`validation-icon ${validationState.email ? 'valid' : 'invalid'}`}>
-                                {validationState.email ? <FaCheck /> : <FaTimes />}
+                    
+                    <div className="form-group">
+                        <label htmlFor="phoneNumber">
+                            <FaPhone className="input-icon" /> Phone Number
+                        </label>
+                        <div className="input-wrapper">
+                            <input 
+                                type="tel" 
+                                id="phoneNumber" 
+                                name="phoneNumber" 
+                                value={formData.phoneNumber}
+                                onChange={handleChange}
+                                placeholder="+254 or 07XX XXX XXX"
+                                className={getInputClassName('phoneNumber')}
+                                disabled={isLoading}
+                                required 
+                            />
+                            {validationState.phoneNumber !== null && (
+                                <span className={`validation-icon ${validationState.phoneNumber ? 'valid' : 'invalid'}`}>
+                                    {validationState.phoneNumber ? <FaCheck /> : <FaTimes />}
+                                </span>
+                            )}
+                        </div>
+                        {validationState.phoneNumber === false && (
+                            <span className="error-message">
+                                {getFieldErrorMessage('phoneNumber', formData.phoneNumber)}
                             </span>
                         )}
                     </div>
-                    {validationState.email === false && (
-                        <span className="error-message">
-                            {getFieldErrorMessage('email', formData.email)}
-                        </span>
-                    )}
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="nationalId">
-                        <FaIdCard className="input-icon" /> National ID
-                    </label>
-                    <div className="input-wrapper">
-                        <input 
-                            type="text" 
-                            id="nationalId" 
-                            name="nationalId" 
-                            value={formData.nationalId}
-                            onChange={handleChange}
-                            placeholder="Enter National ID"
-                            className={getInputClassName('nationalId')}
-                            disabled={isLoading}
-                            required 
-                        />
-                        {validationState.nationalId !== null && (
-                            <span className={`validation-icon ${validationState.nationalId ? 'valid' : 'invalid'}`}>
-                                {validationState.nationalId ? <FaCheck /> : <FaTimes />}
+                    
+                    <div className="form-group">
+                        <label htmlFor="password">
+                            <FaLock className="input-icon" /> Password
+                        </label>
+                        <div className="input-wrapper">
+                            <input 
+                                type={showPassword ? "text" : "password"}
+                                id="password" 
+                                name="password" 
+                                value={formData.password}
+                                onChange={handleChange}
+                                placeholder="Create strong password"
+                                className={getInputClassName('password')}
+                                disabled={isLoading}
+                                required 
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={() => setShowPassword(!showPassword)}
+                                disabled={isLoading}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                            >
+                                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                            </button>
+                            {validationState.password !== null && (
+                                <span className={`validation-icon ${validationState.password ? 'valid' : 'invalid'}`}>
+                                    {validationState.password ? <FaCheck /> : <FaTimes />}
+                                </span>
+                            )}
+                        </div>
+                        {validationState.password === false && (
+                            <span className="error-message">
+                                {getFieldErrorMessage('password', formData.password)}
                             </span>
                         )}
                     </div>
-                    {validationState.nationalId === false && (
-                        <span className="error-message">
-                            {getFieldErrorMessage('nationalId', formData.nationalId)}
-                        </span>
-                    )}
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="phoneNumber">
-                        <FaPhone className="input-icon" /> Phone Number
-                    </label>
-                    <div className="input-wrapper">
-                        <input 
-                            type="tel" 
-                            id="phoneNumber" 
-                            name="phoneNumber" 
-                            value={formData.phoneNumber}
-                            onChange={handleChange}
-                            placeholder="+254 or 07XX XXX XXX"
-                            className={getInputClassName('phoneNumber')}
-                            disabled={isLoading}
-                            required 
-                        />
-                        {validationState.phoneNumber !== null && (
-                            <span className={`validation-icon ${validationState.phoneNumber ? 'valid' : 'invalid'}`}>
-                                {validationState.phoneNumber ? <FaCheck /> : <FaTimes />}
+                    
+                    <div className="form-group">
+                        <label htmlFor="confirmPassword">
+                            <FaLock className="input-icon" /> Confirm Password
+                        </label>
+                        <div className="input-wrapper">
+                            <input 
+                                type={showConfirmPassword ? "text" : "password"}
+                                id="confirmPassword" 
+                                name="confirmPassword" 
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                placeholder="Confirm your password"
+                                className={getInputClassName('confirmPassword')}
+                                disabled={isLoading}
+                                required 
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                disabled={isLoading}
+                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                            >
+                                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                            </button>
+                            {validationState.confirmPassword !== null && (
+                                <span className={`validation-icon ${validationState.confirmPassword ? 'valid' : 'invalid'}`}>
+                                    {validationState.confirmPassword ? <FaCheck /> : <FaTimes />}
+                                </span>
+                            )}
+                        </div>
+                        {validationState.confirmPassword === false && (
+                            <span className="error-message">
+                                {getFieldErrorMessage('confirmPassword', formData.confirmPassword)}
                             </span>
                         )}
                     </div>
-                    {validationState.phoneNumber === false && (
-                        <span className="error-message">
-                            {getFieldErrorMessage('phoneNumber', formData.phoneNumber)}
-                        </span>
-                    )}
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="password">
-                        <FaLock className="input-icon" /> Password
-                    </label>
-                    <div className="input-wrapper">
-                        <input 
-                            type={showPassword ? "text" : "password"}
-                            id="password" 
-                            name="password" 
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="Create strong password"
-                            className={getInputClassName('password')}
-                            disabled={isLoading}
-                            required 
-                        />
-                        <button
+                    
+                    <div className="form-group terms-group">
+                        <label className="terms-checkbox">
+                            <input 
+                                type="checkbox" 
+                                checked={agreedToTerms}
+                                onChange={handleTermsChange}
+                                disabled={isLoading}
+                                required
+                            />
+                            <span className="checkmark"></span>
+                            I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>
+                        </label>
+                    </div>
+                    
+                    {error && <div className="error-message">{error}</div>}
+                    {success && <div className="success-message">{success}</div>}
+                    
+                    <button 
+                        type="submit" 
+                        className="auth-btn signup-btn"
+                        disabled={isLoading || !agreedToTerms}
+                    >
+                        {isLoading ? (
+                            <>
+                                <span className="loading-spinner"></span>
+                                Creating Account...
+                            </>
+                        ) : (
+                            'Create Account'
+                        )}
+                    </button>
+                </form>
+            ) : (
+                <>
+                    <OTPInput 
+                        email={formData.email}
+                        onComplete={handleVerifyOtp}
+                        onResend={handleResendOtp}
+                        isLoading={isLoading}
+                        error={error}
+                        purpose="signup"
+                    />
+                    
+                    {success && <div className="success-message">{success}</div>}
+                    
+                    <div className="auth-nav-link">
+                        <button 
                             type="button"
-                            className="password-toggle"
-                            onClick={() => setShowPassword(!showPassword)}
+                            className="auth-link-btn"
+                            onClick={handleBackToForm}
                             disabled={isLoading}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
                         >
-                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                            ← Back to Form
                         </button>
-                        {validationState.password !== null && (
-                            <span className={`validation-icon ${validationState.password ? 'valid' : 'invalid'}`}>
-                                {validationState.password ? <FaCheck /> : <FaTimes />}
-                            </span>
-                        )}
                     </div>
-                    {validationState.password === false && (
-                        <span className="error-message">
-                            {getFieldErrorMessage('password', formData.password)}
-                        </span>
-                    )}
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="confirmPassword">
-                        <FaLock className="input-icon" /> Confirm Password
-                    </label>
-                    <div className="input-wrapper">
-                        <input 
-                            type={showConfirmPassword ? "text" : "password"}
-                            id="confirmPassword" 
-                            name="confirmPassword" 
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            placeholder="Confirm your password"
-                            className={getInputClassName('confirmPassword')}
-                            disabled={isLoading}
-                            required 
-                        />
-                        <button
-                            type="button"
-                            className="password-toggle"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            disabled={isLoading}
-                            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                        >
-                            {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                        </button>
-                        {validationState.confirmPassword !== null && (
-                            <span className={`validation-icon ${validationState.confirmPassword ? 'valid' : 'invalid'}`}>
-                                {validationState.confirmPassword ? <FaCheck /> : <FaTimes />}
-                            </span>
-                        )}
-                    </div>
-                    {validationState.confirmPassword === false && (
-                        <span className="error-message">
-                            {getFieldErrorMessage('confirmPassword', formData.confirmPassword)}
-                        </span>
-                    )}
-                </div>
-                
-                <div className="form-group terms-group">
-                    <label className="terms-checkbox">
-                        <input 
-                            type="checkbox" 
-                            checked={agreedToTerms}
-                            onChange={handleTermsChange}
-                            disabled={isLoading}
-                            required
-                        />
-                        <span className="checkmark"></span>
-                        I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a>
-                    </label>
-                </div>
-                
-                {error && <div className="error-message">{error}</div>}
-                {success && <div className="success-message">{success}</div>}
-                
-                <button 
-                    type="submit" 
-                    className="auth-btn signup-btn"
-                    disabled={isLoading || !agreedToTerms}
-                >
-                    {isLoading ? (
-                        <>
-                            <span className="loading-spinner"></span>
-                            Creating Account...
-                        </>
-                    ) : (
-                        'Create Account'
-                    )}
-                </button>
-            </form>
+                </>
+            )}
             
-            <div className="auth-nav-link">
-                <p>
-                    Already have an account? 
-                    <a href="/login" onClick={handleLoginRedirect}>
-                        Sign in here
-                    </a>
-                </p>
-            </div>
+            {step === 'form' && (
+                <div className="auth-nav-link">
+                    <p>
+                        Already have an account? 
+                        <a href="/login" onClick={handleLoginRedirect}>
+                            Sign in here
+                        </a>
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

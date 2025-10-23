@@ -1,239 +1,355 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './Styling/auth.css';
+import OTPInput from './OTPInput';
+import { API_CONFIG } from '../../config/api';
 
-const Login = () => {
-    const [formData, setFormData] = useState({
-        email: '',
-        password: ''
+const BuyerLogin = () => {
+  const navigate = useNavigate();
+const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [generalError, setGeneralError] = useState('');
+  
+  // OTP verification state
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add('auth-page');
+    return () => {
+      document.body.classList.remove('auth-page');
+    };
+  }, []);
+
+  // Real-time validation
+  const validateField = (name, value) => {
+    let error = '';
+
+    switch (name) {
+      case 'email':
+        if (!value) {
+          error = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          error = 'Please enter a valid email address';
+        }
+        break;
+      case 'password':
+        if (!value) {
+          error = 'Password is required';
+        } else if (value.length < 6) {
+          error = 'Password must be at least 6 characters';
+        }
+        break;
+      default:
+        break;
+    }
+
+    return error;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Real-time validation
+    const error = validateField(name, value);
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
+
+    // Clear general error when user starts typing
+    if (generalError) {
+      setGeneralError('');
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key]);
+      if (error) {
+        newErrors[key] = error;
+      }
     });
-    
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
-    
-    const navigate = useNavigate();
-    
-    useEffect(() => {
-        document.body.classList.add('auth-page');
-        
-        // Check if user credentials are saved
-        const savedEmail = localStorage.getItem('rememberedEmail');
-        if (savedEmail) {
-            setFormData(prev => ({ ...prev, email: savedEmail }));
-            setRememberMe(true);
-        }
-        
-        return () => {
-            document.body.classList.remove('auth-page');
-        };
-    }, []);
-    
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
-        
-        // Clear error when user starts typing
-        if (error) {
-            setError('');
-        }
-    };
-    
-    const handleRememberMeChange = (e) => {
-        setRememberMe(e.target.checked);
-    };
-    
-    const validateForm = () => {
-        if (!formData.email.trim() || !formData.password.trim()) {
-            setError('Please fill in all fields');
-            return false;
-        }
-        
-        if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            setError('Please enter a valid email address');
-            return false;
-        }
-        
-        if (formData.password.length < 6) {
-            setError('Password must be at least 6 characters long');
-            return false;
-        }
-        
-        return true;
-    };
-    
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!validateForm()) {
-            return;
-        }
-        
-        setIsLoading(true);
-        setError('');
-        
-        // try {
-        //     // Simulate API call - replace with actual API endpoint
-        //     const response = await fetch('/api/auth/login', {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json',
-        //         },
-        //         body: JSON.stringify({
-        //             email: formData.email,
-        //             password: formData.password,
-        //         }),
-        //     });
-            
-        //     // Simulate network delay for demo
-        //     await new Promise(resolve => setTimeout(resolve, 1500));
-            
-        //     // Mock successful response
-        //     const mockUser = {
-        //         id: '1',
-        //         email: formData.email,
-        //         firstName: 'John',
-        //         lastName: 'Doe',
-        //         role: 'farmer'
-        //     };
-            
-        //     // Handle remember me functionality
-        //     if (rememberMe) {
-        //         localStorage.setItem('rememberedEmail', formData.email);
-        //     } else {
-        //         localStorage.removeItem('rememberedEmail');
-        //     }
-            
-        //     // Store user data (in real app, use secure token storage)
-        //     localStorage.setItem('user', JSON.stringify(mockUser));
-        //     localStorage.setItem('authToken', 'mock-jwt-token');
-            
-        //     console.log('Login successful:', mockUser);
-            
-        //     // Redirect to dashboard
-        //     navigate('/dashboard');
-            
-        // } catch (error) {
-        //     console.error('Login error:', error);
-        //     setError('Login failed. Please check your credentials and try again.');
-        // } finally {
-        //     setIsLoading(false);
-        // }
-    };
-    
-    const handleForgotPassword = (e) => {
-        e.preventDefault();
-        console.log('Forgot password clicked');
-        navigate('/forgot-password');
-    };
-    
-    const handleSignUpRedirect = (e) => {
-        e.preventDefault();
-        navigate('/signup');
-    };
 
-    return (
-        <div className="auth-container login-container">
-            <div className="auth-header">
-                <h2>Welcome Back!</h2>
-                <p>Sign in to your KilimoSmart account</p>
-            </div>
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setGeneralError('');
+
+    if (!validateForm()) {
+      setGeneralError('Please fix the errors below');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Step 1: Verify email and password with backend
+                  const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.BUYER_VERIFY_CREDENTIALS, {
+        email: formData.email,
+        password: formData.password
+      });
+
+      console.log('✅ Credentials verified:', response.data);
+
+      // Step 2: Send OTP to email
+      await sendOTP();
+      
+      // Show OTP input screen
+      setShowOTP(true);
+      
+    } catch (error) {
+      console.error('❌ Login error:', error.response?.data || error.message);
+      setGeneralError(error.response?.data?.message || 'Login failed. Please check your credentials and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const sendOTP = async () => {
+    try {
+      // API call to send OTP
+      const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.SEND_OTP, {
+        email: formData.email,
+        purpose: 'login'
+      });
+
+      console.log('✅ OTP sent successfully:', response.data);
+      return response.data;
+      
+    } catch (error) {
+      console.error('❌ OTP sending error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to send OTP. Please try again.');
+    }
+  };
+
+  const handleOTPComplete = async (otpCode) => {
+    setOtpError('');
+    setOtpLoading(true);
+
+    try {
+      // Verify OTP with backend
+      const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_OTP, {
+        email: formData.email,
+        otp: otpCode,
+        purpose: 'login'
+      });
+
+      console.log('✅ OTP verified successfully:', response.data);
+      console.log('Token received:', response.data.token ? 'Yes' : 'No');
+      console.log('User data:', response.data.user);
+      console.log('Remember me:', rememberMe);
+      
+      // Store token and user data
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('authToken', response.data.token);
+      storage.setItem('userData', JSON.stringify(response.data.user));
+      storage.setItem('userType', response.data.user.userType || 'farmer');
+      
+      console.log('✅ Token stored in:', rememberMe ? 'localStorage' : 'sessionStorage');
+      console.log('✅ Navigating to /farmer/dashboard...');
+      
+      // Show success message briefly before navigation
+      alert('Login successful! Redirecting to dashboard...');
             
-            <form className="auth-form login-form" onSubmit={handleSubmit}>
-                <div className="form-group">
-                    <label htmlFor="email">Email Address</label>
-                    <div className="input-wrapper">
-                        <span className="input-icon">📧</span>
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="Enter your email"
-                            required
-                            disabled={isLoading}
-                        />
-                    </div>
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <div className="input-wrapper">
-                        <span className="input-icon">🔒</span>
-                        <input
-                            type={showPassword ? "text" : "password"}
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="Enter your password"
-                            required
-                            disabled={isLoading}
-                        />
-                        <button
-                            type="button"
-                            className="password-toggle"
-                            onClick={() => setShowPassword(!showPassword)}
-                            disabled={isLoading}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
-                        >
-                            {showPassword ? '👁️' : '👁️‍🗨️'}
-                        </button>
-                    </div>
-                </div>
-                
-                <div className="form-options">
-                    <label className="remember-me">
-                        <input 
-                            type="checkbox" 
-                            checked={rememberMe}
-                            onChange={handleRememberMeChange}
-                            disabled={isLoading}
-                        />
-                        Remember me
-                    </label>
-                    <a 
-                        href="#forgot" 
-                        className="forgot-password"
-                        onClick={handleForgotPassword}
-                    >
-                        Forgot password?
-                    </a>
-                </div>
-                
-                {error && <div className="error-message">{error}</div>}
-                
-                <button 
-                    type="submit" 
-                    className="auth-btn login-btn"
-                    disabled={isLoading}
+            // Use replace to prevent going back to login
+            navigate('/buyer-dashboard', { replace: true });
+      
+    } catch (error) {
+      console.error('❌ OTP verification error:', error.response?.data || error.message);
+      setOtpError(error.response?.data?.message || 'Invalid or expired OTP. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    setOtpError('');
+    try {
+      await sendOTP();
+      // Show success message
+      console.log('OTP resent successfully');
+    } catch (error) {
+      setOtpError('Failed to resend OTP. Please try again.');
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setShowOTP(false);
+    setOtpError('');
+  };
+
+  const getInputClass = (fieldName) => {
+    if (errors[fieldName]) return 'input-error';
+    if (formData[fieldName] && !errors[fieldName]) return 'input-valid';
+    return '';
+  };
+
+  const getValidationIcon = (fieldName) => {
+    if (!formData[fieldName]) return null;
+    if (errors[fieldName]) {
+      return <span className="validation-icon invalid">✕</span>;
+    }
+    return <span className="validation-icon valid">✓</span>;
+  };
+
+  return (
+    <div className="auth-container login-container">
+      {!showOTP ? (
+        <>
+                    <div className="auth-header">
+                        <h2>🛒 Buyer Login</h2>
+                        <p>Welcome back! Sign in to your KilimoSmart account</p>
+                    </div>          <form onSubmit={handleSubmit} className="auth-form login-form">
+            {generalError && (
+              <div className="error-message">
+                {generalError}
+              </div>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
+              <div className="input-wrapper">
+                <span className="input-icon">📧</span>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={getInputClass('email')}
+                  placeholder="farmer@example.com"
+                  disabled={isLoading}
+                  autoComplete="email"
+                />
+                {getValidationIcon('email')}
+              </div>
+              {errors.email && (
+                <div className="error-message">{errors.email}</div>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="input-wrapper">
+                <span className="input-icon">🔒</span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={getInputClass('password')}
+                  placeholder="Enter your password"
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                    {isLoading ? (
-                        <>
-                            <span className="loading-spinner"></span>
-                            Signing In...
-                        </>
-                    ) : (
-                        'Sign In'
-                    )}
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
                 </button>
-            </form>
-            
-            <div className="auth-nav-link">
-                <p>
-                    Don't have an account? 
-                    <a href="/signup" onClick={handleSignUpRedirect}>
-                        Sign up here
-                    </a>
-                </p>
+                {getValidationIcon('password')}
+              </div>
+              {errors.password && (
+                <div className="error-message">{errors.password}</div>
+              )}
             </div>
-        </div>
-    );
+
+            <div className="form-options">
+              <label className="remember-me">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={isLoading}
+                />
+                Remember me
+              </label>
+              <a href="/forgot-password" className="forgot-password">
+                Forgot Password?
+              </a>
+            </div>
+
+            <button 
+              type="submit" 
+              className="auth-btn"
+              disabled={isLoading || Object.keys(errors).some(key => errors[key])}
+            >
+              {isLoading ? (
+                <>
+                  <div className="loading-spinner"></div>
+                  <span>Verifying...</span>
+                </>
+              ) : (
+                <>
+                  <span>Continue</span>
+                  <span>→</span>
+                </>
+              )}
+            </button>
+
+            <div className="auth-nav-link">
+              <p>
+                Don't have an account?
+                                                <a href="/signup">Create Buyer Account</a>
+              </p>
+            </div>
+          </form>
+        </>
+      ) : (
+        <>
+          <div className="otp-back-btn">
+            <button onClick={handleBackToLogin} className="back-link">
+              ← Back to Login
+            </button>
+          </div>
+          
+          <OTPInput
+            length={6}
+            onComplete={handleOTPComplete}
+            onResend={handleResendOTP}
+            email={formData.email}
+            isLoading={otpLoading}
+            error={otpError}
+            purpose="login"
+          />
+        </>
+      )}
+    </div>
+  );
 };
 
-export default Login;
+export default BuyerLogin;

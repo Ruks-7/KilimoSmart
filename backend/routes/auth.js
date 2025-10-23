@@ -204,9 +204,10 @@ router.post('/verify-otp', async (req, res) => {
     // For login, generate JWT and return user data
     if (purpose === 'login') {
       const userResult = await query(
-        `SELECT u.*, f.farmer_id, f.farm_type, f.farm_size, f.is_verified as farmer_verified
-        FROM "USER" u
+        `SELECT u.*, f.farmer_id, f.farm_type, f.farm_size, f.is_verified as farmer_verified,
+         b.buyer_id, b.business_name FROM "USER" u
         LEFT JOIN FARMER f ON u.user_id = f.user_id
+        LEFT JOIN BUYER b ON u.user_id = b.user_id
         WHERE u.email = $1`,
         [email]
       );
@@ -233,6 +234,7 @@ router.post('/verify-otp', async (req, res) => {
           email: user.email, 
           userType: user.user_type,
           farmer_id: user.farmer_id,
+          buyer_id: user.buyer_id,
         },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRY || '7d' }
@@ -245,24 +247,83 @@ router.post('/verify-otp', async (req, res) => {
         user: {
           user_id: user.user_id,
           email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          userType: user.user_type,
-          emailVerified: true,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          user_type: user.user_type,
+          email_verified: true,
           farmer: user.farmer_id ? {
             farmer_id: user.farmer_id,
             farm_type: user.farm_type,
             farm_size: user.farm_size,
             is_verified: user.farmer_verified,
           } : null,
+          buyer: user.buyer_id ? {
+            buyer_id: user.buyer_id,
+            business_name: user.business_name,
+          } : null,
         },
       });
     }
 
-    // For signup, just return success (account creation happens in /signup endpoint)
+    // For signup, generate JWT and return user data
+    if (purpose === 'signup') {
+      const userResult = await query(
+        `SELECT u.*, b.buyer_id, b.business_name FROM "USER" u
+        LEFT JOIN BUYER b ON u.user_id = b.user_id
+        WHERE u.email = $1`,
+        [email]
+      );
+
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found',
+        });
+      }
+
+      const user = userResult.rows[0];
+
+      // Update email_verified if not already
+      await query(
+        'UPDATE "USER" SET email_verified = TRUE WHERE user_id = $1',
+        [user.user_id]
+      );
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          user_id: user.user_id, 
+          email: user.email, 
+          userType: user.user_type,
+          buyer_id: user.buyer_id,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRY || '7d' }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Email verified successfully. Account activated.',
+        token,
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          user_type: user.user_type,
+          email_verified: true,
+        },
+        buyer: user.buyer_id ? {
+          buyer_id: user.buyer_id,
+          business_name: user.business_name,
+        } : null,
+      });
+    }
+
+    // For password_reset, just return success
     return res.status(200).json({
       success: true,
-      message: 'Email verified successfully. Please complete your registration.',
+      message: 'OTP verified successfully. Proceed with password reset.',
     });
 
   } catch (error) {
@@ -492,6 +553,224 @@ router.post('/farmer/signup', async (req, res) => {
     // Rollback transaction on error
     await client.query('ROLLBACK');
     console.error('Farmer signup error:', error);
+    
+    return res.status(500).json({
+      success: false,
+      message: 'Account creation failed. Please try again.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  } finally {
+    // Release client back to pool
+    client.release();
+  }
+});
+
+/**
+ * POST /api/auth/buyer/verify-credentials
+ * Verify email and password for buyer login
+ */
+router.post('/buyer/verify-credentials', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+      });
+    }
+
+    // Find user by email (must be buyer type)
+    const result = await query(
+      `SELECT u.*, b.buyer_id FROM "USER" u
+       LEFT JOIN BUYER b ON u.user_id = b.user_id
+       WHERE u.email = $1 AND u.user_type = 'buyer'`,
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
+    const user = result.rows[0];
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        user_id: user.user_id, 
+        email: user.email, 
+        userType: user.user_type,
+        buyer_id: user.buyer_id,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRY || '7d' }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Credentials verified successfully',
+      token,
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone_number: user.phone_number,
+        user_type: user.user_type,
+      },
+      buyer: {
+        buyer_id: user.buyer_id,
+      },
+    });
+
+  } catch (error) {
+    console.error('Buyer verify credentials error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Authentication failed. Please try again.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * POST /api/auth/buyer/signup
+ * Create buyer account
+ */
+router.post('/buyer/signup', async (req, res) => {
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    phoneNumber,
+    nationalId,
+    businessName,
+    businessType,
+    deliveryAddress,
+    city,
+  } = req.body;
+
+  // Get a client for transaction
+  const client = await getClient();
+
+  try {
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password || !phoneNumber || !businessName || !nationalId) {
+      return res.status(400).json({
+        success: false,
+        message: 'All required fields must be provided',
+      });
+    }
+
+    // Check if email already exists
+    const existingUser = await query(
+      'SELECT user_id FROM "USER" WHERE email = $1',
+      [email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email already registered. Please login instead.',
+      });
+    }
+
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Start transaction
+    await client.query('BEGIN');
+
+    // 1. Create USER record with the national_id provided by the buyer
+    const userResult = await client.query(
+      `INSERT INTO "USER" (national_id, first_name, last_name, email, phone_number, password_hash, user_type, email_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING user_id, first_name, last_name, email, phone_number, user_type, email_verified, created_at`,
+      [nationalId, firstName, lastName, email, phoneNumber, hashedPassword, 'buyer', true]
+    );
+
+    const user = userResult.rows[0];
+
+    // 2. Create BUYER record
+    const buyerResult = await client.query(
+      `INSERT INTO BUYER (user_id, business_name, business_type, delivery_address, city)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING buyer_id, business_name, business_type, delivery_address, city, created_at`,
+      [
+        user.user_id,
+        businessName,
+        businessType || 'retail',
+        deliveryAddress || '',
+        city || '',
+      ]
+    );
+
+    const buyer = buyerResult.rows[0];
+
+    // Commit transaction
+    await client.query('COMMIT');
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        user_id: user.user_id, 
+        email: user.email, 
+        userType: user.user_type,
+        buyer_id: buyer.buyer_id,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRY || '7d' }
+    );
+
+    // Send welcome email (don't wait for it)
+    sendWelcomeEmail(email, firstName).catch(err => 
+      console.error('Welcome email error:', err)
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Buyer account created successfully',
+      token,
+      user: {
+        user_id: user.user_id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone_number: user.phone_number,
+        user_type: user.user_type,
+        email_verified: user.email_verified,
+        created_at: user.created_at,
+      },
+      buyer: {
+        buyer_id: buyer.buyer_id,
+        business_name: buyer.business_name,
+        business_type: buyer.business_type,
+        delivery_address: buyer.delivery_address,
+        city: buyer.city,
+        created_at: buyer.created_at,
+      },
+    });
+
+  } catch (error) {
+    // Rollback transaction on error
+    await client.query('ROLLBACK');
+    console.error('Buyer signup error:', error);
     
     return res.status(500).json({
       success: false,

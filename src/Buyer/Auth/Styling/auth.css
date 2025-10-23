@@ -477,6 +477,74 @@ body.auth-page::before {
     display: none;
 }
 
+/* Secondary Button Style */
+.auth-btn-secondary {
+    background: linear-gradient(135deg, #666 0%, #555 50%, #444 100%);
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.auth-btn-secondary:hover {
+    background: linear-gradient(135deg, #777 0%, #666 50%, #555 100%);
+    box-shadow: 
+        0 8px 25px rgba(0, 0, 0, 0.2),
+        0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.auth-btn-secondary:disabled {
+    background: linear-gradient(135deg, #999 0%, #777 50%, #666 100%);
+    opacity: 0.6;
+}
+
+/* Auth Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+    gap: 1rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border-color), transparent);
+}
+
+.auth-divider span {
+    color: #999;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Password Toggle Button */
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password:hover {
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.toggle-password:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
 /* Loading Spinner */
 .loading-spinner {
     width: 20px;
