@@ -260,6 +260,16 @@ router.post('/products', async (req, res) => {
     const product = result.rows[0];
     const productId = product.id;
 
+    // DEBUG: Log what we receive
+    console.log('📤 POST /products received:', {
+      hasReqFiles: !!req.files,
+      reqFilesKeys: req.files ? Object.keys(req.files) : 'no req.files',
+      reqFilesContent: req.files,
+      hasPhotos: req.files && !!req.files.photos,
+      hasPhoto: req.files && !!req.files.photo,
+      reqBodyKeys: Object.keys(req.body),
+    });
+
     // Handle photo uploads if any files were uploaded
     const photoResults = [];
     if (req.files && (req.files.photos || req.files.photo)) {
@@ -271,6 +281,8 @@ router.post('/products', async (req, res) => {
             : [req.files.photo]
           : [];
 
+      console.log(`📸 Found ${photoFiles.length} photos to upload`);
+
       const mainPhotoIdx = parseInt(main_photo_index) || 0;
       
       for (let i = 0; i < photoFiles.length; i++) {
@@ -278,6 +290,12 @@ router.post('/products', async (req, res) => {
         const isMainPhoto = i === mainPhotoIdx;
         
         try {
+          console.log(`📸 Uploading photo ${i + 1}/${photoFiles.length}:`, {
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.mimetype
+          });
+
           // Upload directly to Cloudinary from buffer (no temp files needed)
           const uploadResult = await new Promise((resolve, reject) => {
             const stream = cloudinary.uploader.upload_stream(
@@ -297,7 +315,7 @@ router.post('/products', async (req, res) => {
 
           const photoUrl = uploadResult.secure_url;
           
-          console.log(`📸 Uploaded photo ${i + 1}/${photoFiles.length}:`, {
+          console.log(`✅ Uploaded photo ${i + 1}/${photoFiles.length}:`, {
             url: photoUrl,
             isMain: isMainPhoto
           });
@@ -324,7 +342,15 @@ router.post('/products', async (req, res) => {
           // Continue with next file instead of failing entire request
         }
       }
+    } else {
+      console.log('⚠️  No photos in request:', {
+        hasReqFiles: !!req.files,
+        hasPhotos: req.files && !!req.files.photos,
+        hasPhoto: req.files && !!req.files.photo,
+      });
     }
+
+    console.log(`✅ Product created: ${productId} with ${photoResults.length} photos`);
 
     console.log(`✅ Product created: ${productId} with ${photoResults.length} photos`);
 
