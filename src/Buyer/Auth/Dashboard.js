@@ -194,8 +194,6 @@ const BuyerDashboard = () => {
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userFirstName');
     localStorage.removeItem('userLastName');
-    // clear persisted cart on logout
-    localStorage.removeItem('cart');
     navigate('/login');
   };
 
