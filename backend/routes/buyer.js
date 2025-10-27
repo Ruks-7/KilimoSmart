@@ -26,11 +26,15 @@ router.get('/products', async (req, res) => {
         p.price_per_unit as price,
         p.is_organic as "isOrganic",
         p.harvest_date as "harvestDate",
-        f.first_name || ' ' || f.last_name as "farmerName",
-        f.location as "farmerLocation",
-        f.phone_number as "farmerPhone"
+        f.farm_name as "farmerName",
+        l.county as location,
+        u.phone_number as "farmerPhone",
+        pp.photo_url as "imageUrl"
       FROM PRODUCT p
       JOIN FARMER f ON p.farmer_id = f.farmer_id
+      JOIN "USER" u ON f.user_id = u.user_id
+      LEFT JOIN LOCATION l ON f.location_id = l.location_id
+      LEFT JOIN PRODUCT_PHOTOS pp ON p.product_id = pp.product_id AND pp.is_main_photo = TRUE
       WHERE p.status = 'available' AND p.quantity_available > 0
     `;
 
@@ -93,7 +97,8 @@ router.get('/products/:id', async (req, res) => {
   try {
     const productId = req.params.id;
 
-    const result = await query(
+    // Get product details
+    const productResult = await query(
       `SELECT 
         p.product_id as id,
         p.product_name as name,
@@ -107,27 +112,48 @@ router.get('/products/:id', async (req, res) => {
         p.expiry_date as "expiryDate",
         p.status,
         f.farmer_id as "farmerId",
-        f.first_name || ' ' || f.last_name as "farmerName",
-        f.location as "farmerLocation",
-        f.phone_number as "farmerPhone",
+        f.farm_name as "farmerName",
+        l.county as location,
+        u.phone_number as "farmerPhone",
         f.farm_type as "farmType",
         f.reputation_score as "reputationScore"
       FROM PRODUCT p
       JOIN FARMER f ON p.farmer_id = f.farmer_id
+      JOIN "USER" u ON f.user_id = u.user_id
+      LEFT JOIN LOCATION l ON f.location_id = l.location_id
       WHERE p.product_id = $1`,
       [productId]
     );
 
-    if (result.rows.length === 0) {
+    if (productResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Product not found',
       });
     }
 
+    // Get all product photos
+    const photosResult = await query(
+      `SELECT 
+        photo_id as id,
+        photo_url as url,
+        is_main_photo as "isMain",
+        upload_date as "uploadDate"
+      FROM PRODUCT_PHOTOS
+      WHERE product_id = $1
+      ORDER BY is_main_photo DESC, upload_date DESC`,
+      [productId]
+    );
+
+    const product = {
+      ...productResult.rows[0],
+      images: photosResult.rows,
+      imageUrl: photosResult.rows.find(img => img.isMain)?.url || photosResult.rows[0]?.url || null
+    };
+
     return res.status(200).json({
       success: true,
-      product: result.rows[0],
+      product: product,
     });
   } catch (error) {
     console.error('Get product details error:', error);
@@ -487,6 +513,114 @@ router.get('/categories', async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch categories',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * GET /api/buyer/profile
+ * Get buyer profile information
+ */
+router.get('/profile', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const result = await query(
+      `SELECT 
+        u.user_id as id,
+        u.email,
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.phone_number as "phoneNumber",
+        u.user_type as "userType",
+        u.created_at as "createdAt",
+        b.buyer_id as "buyerId",
+        b.delivery_address as "deliveryAddress",
+        b.city as location,
+        b.city as county,
+        b.business_name as "businessName",
+        b.business_type as "businessType"
+      FROM "USER" u
+      JOIN BUYER b ON u.user_id = b.user_id
+      WHERE u.user_id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Buyer profile not found'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      ...result.rows[0]
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * PUT /api/buyer/profile
+ * Update buyer profile information
+ */
+router.put('/profile', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { firstName, lastName, phoneNumber, deliveryAddress } = req.body;
+
+    // Update USER table
+    await query(
+      `UPDATE "USER" 
+       SET first_name = $1, last_name = $2, phone_number = $3, updated_at = NOW()
+       WHERE user_id = $4`,
+      [firstName, lastName, phoneNumber, userId]
+    );
+
+    // Update BUYER table
+    if (deliveryAddress) {
+      await query(
+        `UPDATE BUYER 
+         SET delivery_address = $1, updated_at = NOW()
+         WHERE user_id = $2`,
+        [deliveryAddress, userId]
+      );
+    }
+
+    // Fetch updated profile
+    const result = await query(
+      `SELECT 
+        u.user_id as id,
+        u.email,
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.phone_number as "phoneNumber",
+        b.buyer_id as "buyerId",
+        b.delivery_address as "deliveryAddress"
+      FROM "USER" u
+      JOIN BUYER b ON u.user_id = b.user_id
+      WHERE u.user_id = $1`,
+      [userId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      ...result.rows[0]
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }

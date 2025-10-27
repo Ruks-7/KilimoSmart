@@ -18,6 +18,21 @@ const API_ENDPOINTS = {
     SIGNUP: `${API_BASE_URL}/api/auth/signup`,
     FARMER_SIGNUP: `${API_BASE_URL}/api/auth/farmer/signup`,
     BUYER_SIGNUP: `${API_BASE_URL}/api/auth/buyer/signup`,
+    VERIFY_TOKEN: `${API_BASE_URL}/api/auth/verify`,
+  },
+  
+  // Buyer endpoints
+  BUYER: {
+    PROFILE: `${API_BASE_URL}/api/buyer/profile`,
+    PRODUCTS: `${API_BASE_URL}/api/buyer/products`,
+    ORDERS: `${API_BASE_URL}/api/buyer/orders`,
+    CREATE_ORDER: `${API_BASE_URL}/api/buyer/orders/create`,
+    ORDER_HISTORY: `${API_BASE_URL}/api/buyer/orders/history`,
+    UPDATE_PROFILE: `${API_BASE_URL}/api/buyer/profile/update`,
+    CART: `${API_BASE_URL}/api/buyer/cart`,
+    ADD_TO_CART: `${API_BASE_URL}/api/buyer/cart/add`,
+    REMOVE_FROM_CART: `${API_BASE_URL}/api/buyer/cart/remove`,
+    UPDATE_CART: `${API_BASE_URL}/api/buyer/cart/update`,
     VERIFY_OTP: `${API_BASE_URL}/api/auth/verify-otp`,
     RESEND_OTP: `${API_BASE_URL}/api/auth/resend-otp`,
     SEND_OTP: `${API_BASE_URL}/api/auth/send-otp`,
@@ -34,14 +49,6 @@ const API_ENDPOINTS = {
     ORDERS: `${API_BASE_URL}/api/farmer/orders`,
     PAYMENTS: `${API_BASE_URL}/api/farmer/payments`,
     PRODUCT_PHOTOS: (productId) => `${API_BASE_URL}/api/farmer/products/${productId}/photos`,
-  },
-  
-  // Buyer endpoints
-  BUYER: {
-    PROFILE: `${API_BASE_URL}/api/buyer/profile`,
-    PRODUCTS: `${API_BASE_URL}/api/buyer/products`,
-    ORDERS: `${API_BASE_URL}/api/buyer/orders`,
-    CART: `${API_BASE_URL}/api/buyer/cart`,
   },
 };
 
