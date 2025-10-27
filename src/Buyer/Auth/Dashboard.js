@@ -20,7 +20,15 @@ const BuyerDashboard = () => {
     location: '',
     sortBy: 'newest'
   });
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse saved cart from localStorage', e);
+      return [];
+    }
+  });
   const [orders, setOrders] = useState([]);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -49,6 +57,15 @@ const BuyerDashboard = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Persist cart to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('cart', JSON.stringify(cart));
+    } catch (e) {
+      console.error('Failed to save cart to localStorage', e);
+    }
+  }, [cart]);
 
   // Check if user is logged in and fetch user data
   useEffect(() => {
@@ -177,6 +194,8 @@ const BuyerDashboard = () => {
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userFirstName');
     localStorage.removeItem('userLastName');
+    // clear persisted cart on logout
+    localStorage.removeItem('cart');
     navigate('/login');
   };
 
