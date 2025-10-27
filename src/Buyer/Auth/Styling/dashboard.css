@@ -1486,7 +1486,6 @@ input, select, textarea {
   background: white;
   border-radius: var(--radius-xl);
   max-width: 900px;
-  width: 100%;
   max-height: 90vh;
   height: 90vh; /* Ensure full-height modal so both columns can occupy entire space */
   overflow: hidden;
