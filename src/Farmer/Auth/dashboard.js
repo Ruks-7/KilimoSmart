@@ -75,9 +75,9 @@ const FarmerDashboard = () => {
         try {
             // Check both localStorage and sessionStorage for token
             const token = localStorage.getItem('authToken') || 
-                         sessionStorage.getItem('authToken') || 
-                         localStorage.getItem('token') ||
-                         sessionStorage.getItem('token');
+                        sessionStorage.getItem('authToken') || 
+                        localStorage.getItem('token') ||
+                        sessionStorage.getItem('token');
 
             if (!token) {
                 console.log('❌ No token found in localStorage or sessionStorage');
@@ -348,13 +348,13 @@ const FarmerDashboard = () => {
         try {
             // Check both localStorage and sessionStorage
             const token = localStorage.getItem('authToken') || 
-                         sessionStorage.getItem('authToken') ||
-                         localStorage.getItem('token') ||
-                         sessionStorage.getItem('token');
+                        sessionStorage.getItem('authToken') ||
+                        localStorage.getItem('token') ||
+                        sessionStorage.getItem('token');
             const farmerId = localStorage.getItem('farmerId') || 
-                           sessionStorage.getItem('farmerId') ||
-                           localStorage.getItem('userId') ||
-                           sessionStorage.getItem('userId');
+                        sessionStorage.getItem('farmerId') ||
+                        localStorage.getItem('userId') ||
+                        sessionStorage.getItem('userId');
 
             if (!token) {
                 showNotificationMessage('Please login to continue', 'error');

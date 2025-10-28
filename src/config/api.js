@@ -16,6 +16,13 @@ const API_ENDPOINTS = {
   AUTH: {
     LOGIN: `${API_BASE_URL}/api/auth/login`,
     SIGNUP: `${API_BASE_URL}/api/auth/signup`,
+    VERIFY_OTP: `${API_BASE_URL}/api/auth/verify-otp`,
+    RESEND_OTP: `${API_BASE_URL}/api/auth/resend-otp`,
+    SEND_OTP: `${API_BASE_URL}/api/auth/send-otp`,
+    FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/forgot-password`,
+    RESET_PASSWORD: `${API_BASE_URL}/api/auth/reset-password`,
+    FARMER_VERIFY_CREDENTIALS: `${API_BASE_URL}/api/auth/farmer/verify-credentials`,
+    BUYER_VERIFY_CREDENTIALS: `${API_BASE_URL}/api/auth/buyer/verify-credentials`,
     FARMER_SIGNUP: `${API_BASE_URL}/api/auth/farmer/signup`,
     BUYER_SIGNUP: `${API_BASE_URL}/api/auth/buyer/signup`,
     VERIFY_TOKEN: `${API_BASE_URL}/api/auth/verify`,
@@ -33,13 +40,6 @@ const API_ENDPOINTS = {
     ADD_TO_CART: `${API_BASE_URL}/api/buyer/cart/add`,
     REMOVE_FROM_CART: `${API_BASE_URL}/api/buyer/cart/remove`,
     UPDATE_CART: `${API_BASE_URL}/api/buyer/cart/update`,
-    VERIFY_OTP: `${API_BASE_URL}/api/auth/verify-otp`,
-    RESEND_OTP: `${API_BASE_URL}/api/auth/resend-otp`,
-    SEND_OTP: `${API_BASE_URL}/api/auth/send-otp`,
-    FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/forgot-password`,
-    RESET_PASSWORD: `${API_BASE_URL}/api/auth/reset-password`,
-    FARMER_VERIFY_CREDENTIALS: `${API_BASE_URL}/api/auth/farmer/verify-credentials`,
-    BUYER_VERIFY_CREDENTIALS: `${API_BASE_URL}/api/auth/buyer/verify-credentials`,
   },
   
   // Farmer endpoints

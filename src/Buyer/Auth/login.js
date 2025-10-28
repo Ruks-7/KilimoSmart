@@ -111,7 +111,7 @@ const [formData, setFormData] = useState({
 
     try {
       // Step 1: Verify email and password with backend
-        const response = await axios.post(API_CONFIG.ENDPOINTS.BUYER.BUYER_VERIFY_CREDENTIALS, {
+        const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.BUYER_VERIFY_CREDENTIALS, {
         email: formData.email,
         password: formData.password
       });
@@ -135,7 +135,7 @@ const [formData, setFormData] = useState({
   const sendOTP = async () => {
     try {
       // API call to send OTP
-      const response = await axios.post(API_CONFIG.ENDPOINTS.BUYER.SEND_OTP, {
+      const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.SEND_OTP, {
         email: formData.email,
         purpose: 'login'
       });
@@ -155,7 +155,7 @@ const [formData, setFormData] = useState({
 
     try {
       // Verify OTP with backend
-      const response = await axios.post(API_CONFIG.ENDPOINTS.BUYER.VERIFY_OTP, {
+      const response = await axios.post(API_CONFIG.ENDPOINTS.AUTH.VERIFY_OTP, {
         email: formData.email,
         otp: otpCode,
         purpose: 'login'
@@ -324,7 +324,7 @@ const [formData, setFormData] = useState({
             <div className="auth-nav-link">
               <p>
                 Don't have an account?
-                                                <a href="/signup">Create Buyer Account</a>
+                <a href="/signup">Create Buyer Account</a>
               </p>
             </div>
           </form>
