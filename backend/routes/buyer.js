@@ -431,10 +431,11 @@ router.get('/orders/:id', async (req, res) => {
         oi.quantity_ordered as quantity,
         oi.unit_price as "pricePerUnit",
         oi.subtotal,
-        f.first_name || ' ' || f.last_name as "farmerName"
+        u.first_name || ' ' || u.last_name as "farmerName"
       FROM ORDER_ITEMS oi
       JOIN PRODUCT p ON oi.product_id = p.product_id
       JOIN FARMER f ON p.farmer_id = f.farmer_id
+      JOIN "USER" u ON f.user_id = u.user_id
       WHERE oi.order_id = $1`,
       [orderId]
     );
