@@ -658,7 +658,11 @@ router.post('/admin/login', async (req, res) => {
   const adminPassword = process.env.ADMIN_PASSWORD;
 
   if (email === adminEmail && password === adminPassword) {
-    const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ 
+      role: 'admin',
+      email: email,
+      userType: 'admin'
+    }, process.env.JWT_SECRET, { expiresIn: '1h' });
     return res.json({ success: true, token });
   }
 

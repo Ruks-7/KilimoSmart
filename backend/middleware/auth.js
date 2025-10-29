@@ -70,7 +70,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 /**
- * Middleware to check if user has farmer role
+ * Middleware to check if user has farmer role (or admin for viewing purposes)
  */
 const requireFarmer = (req, res, next) => {
   console.log('🚜 Checking farmer role:', {
@@ -79,15 +79,15 @@ const requireFarmer = (req, res, next) => {
     farmerId: req.user.farmerId
   });
   
-  if (req.user.role !== 'farmer') {
-    console.error('❌ Role check failed:', req.user.role, '!== farmer');
+  if (req.user.role !== 'farmer' && req.user.role !== 'admin') {
+    console.error('❌ Role check failed:', req.user.role, '!== farmer/admin');
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Farmer role required.',
+      message: 'Access denied. Farmer or Admin role required.',
     });
   }
   
-  console.log('✅ Farmer role verified');
+  console.log('✅ Farmer/Admin role verified');
   next();
 };
 

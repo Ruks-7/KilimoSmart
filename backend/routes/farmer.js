@@ -13,6 +13,15 @@ router.use(requireFarmer);
 
 router.get('/products', async (req, res) => {
   try {
+    // Admin users should use admin routes instead
+    if (req.user.role === 'admin') {
+      return res.json({
+        success: true,
+        products: [],
+        message: 'Admin users should use /api/admin routes for product management.'
+      });
+    }
+
     const farmerId = req.user.farmerId || req.user.userId;
 
     const result = await query(
@@ -595,6 +604,18 @@ router.delete('/products/:id', async (req, res) => {
  */
 router.get('/dashboard-stats', async (req, res) => {
   try {
+    // Admin users get different stats
+    if (req.user.role === 'admin') {
+      return res.json({
+        success: true,
+        totalProducts: 0,
+        activeOrders: 0,
+        totalRevenue: 0,
+        lowStockItems: 0,
+        message: 'Admin users should use /api/admin/stats for dashboard statistics.'
+      });
+    }
+
     const farmerId = req.user.farmerId || req.user.userId;
 
     // Get product count
@@ -656,6 +677,21 @@ router.get('/dashboard-stats', async (req, res) => {
  */
 router.get('/profile', async (req, res) => {
   try {
+    // Admin users don't have farmer profiles
+    if (req.user.role === 'admin') {
+      return res.json({
+        success: true,
+        profile: {
+          farm_name: 'Admin',
+          farm_type: 'Administration',
+          farm_size: 'N/A',
+          location: 'N/A',
+          reputation_score: 0
+        },
+        message: 'Admin users do not have farmer profiles.'
+      });
+    }
+
     const farmerId = req.user.farmerId || req.user.userId;
 
     const result = await query(
