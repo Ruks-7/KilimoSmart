@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Styling/dashboard.css';
 import API_CONFIG from '../../config/api';
@@ -37,6 +37,16 @@ const BuyerDashboard = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [stkResponse, setStkResponse] = useState(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState(null); // { orderId, checkoutRequestId }
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [addressInput, setAddressInput] = useState('');
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [proceedAfterSave, setProceedAfterSave] = useState(false);
+  const [lastCheckoutInfo, setLastCheckoutInfo] = useState(null);
+  const [showRawDetails, setShowRawDetails] = useState(false);
 
   // Handle window resize for filters
   useEffect(() => {
@@ -233,6 +243,163 @@ const BuyerDashboard = () => {
     ));
   };
 
+  // Proceed to checkout: create order and trigger M-Pesa STK Push
+  const handleProceedToCheckout = async () => {
+    if (!cart || cart.length === 0) {
+      showNotification('Your cart is empty', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+
+      // Prepare items for backend
+      const itemsPayload = cart.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity,
+        price_per_unit: item.price
+      }));
+
+      // Validate availability before attempting to create order
+      const availabilityIssues = [];
+      await Promise.all(itemsPayload.map(async (it) => {
+        try {
+          const prodResp = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.PRODUCTS}/${it.product_id}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) }
+          });
+          if (!prodResp.ok) return;
+          const prod = await prodResp.json().catch(() => ({}));
+          const available = prod?.quantity ?? prod?.quantity_available ?? prod?.product?.quantity ?? null;
+          const status = prod?.status ?? prod?.product?.status ?? null;
+          if (status && status !== 'available') {
+            availabilityIssues.push({ id: it.product_id, reason: 'not available' });
+          } else if (available != null && available < it.quantity) {
+            availabilityIssues.push({ id: it.product_id, reason: 'insufficient', available });
+          }
+        } catch (e) {
+          // ignore individual product check errors
+        }
+      }));
+
+      if (availabilityIssues.length > 0) {
+        // Try to adjust cart (set quantity to available where possible) and inform the user
+        let msg = 'Some items are no longer available in the requested quantity:\n';
+        const newCart = [...cart];
+        availabilityIssues.forEach(issue => {
+          const idx = newCart.findIndex(c => c.id === issue.id);
+          if (idx !== -1) {
+            if (issue.reason === 'insufficient') {
+              msg += `• Product ${issue.id}: only ${issue.available} available. Quantity adjusted.\n`;
+              newCart[idx] = { ...newCart[idx], quantity: Math.max(1, Math.floor(issue.available)) };
+            } else if (issue.reason === 'not available') {
+              msg += `• Product ${issue.id}: currently not available and was removed from cart.\n`;
+              newCart.splice(idx, 1);
+            }
+          }
+        });
+        setCart(newCart);
+        setIsLoading(false);
+        showNotification(msg, 'error');
+        return;
+      }
+
+      // Ensure we have a delivery address.
+      let deliveryAddress = user?.deliveryAddress || user?.delivery_address || '';
+      if (!deliveryAddress) {
+
+        setAddressInput('');
+        setProceedAfterSave(true);
+        setShowAddressModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      const orderBody = {
+        items: itemsPayload,
+        delivery_address: deliveryAddress,
+        payment_method: 'M-Pesa',
+        notes: ''
+      };
+
+      // Create order
+      const orderResp = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.BUYER.ORDERS.replace(API_CONFIG.BASE_URL, '')}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(orderBody)
+      });
+
+      if (!orderResp.ok) {
+        const err = await orderResp.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to create order');
+      }
+
+      const orderData = await orderResp.json();
+      const orderId = orderData?.order?.id || orderData?.order?.order_id || orderData?.orderId || orderData?.id || null;
+      const finalOrderId = orderId || orderData?.orderId || orderData?.id || null;
+
+  // Initiate STK Push
+      const amount = Math.round(getTotalCartValue());
+
+      // Normalize phone number to 254 format if possible
+      let phone = user?.phoneNumber || user?.phone || '';
+      phone = phone?.toString().trim();
+      if (phone?.startsWith('0')) phone = '254' + phone.slice(1);
+
+      // store checkout summary for modal
+      setLastCheckoutInfo({
+        orderId: finalOrderId,
+        amount,
+        phone,
+        itemsCount: itemsPayload.length,
+        deliveryAddress
+      });
+
+      setShowRawDetails(false);
+
+      const mpesaResp = await fetch(`${API_CONFIG.BASE_URL || ''}/api/mpesa/stkpush`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({
+          phone,
+          amount,
+          orderId: finalOrderId,
+          accountReference: `ORDER-${finalOrderId}`,
+          transactionDesc: `Payment for order ${finalOrderId}`
+        })
+      });
+
+      const mpesaData = await mpesaResp.json().catch(() => ({}));
+
+      // Save response and show confirmation modal with details
+      setStkResponse(mpesaData || null);
+      setShowCheckoutModal(true);
+
+      if (!mpesaResp.ok) {
+        showNotification(mpesaData?.message || 'Failed to initiate M-Pesa payment', 'error');
+      } else {
+        showNotification('Payment prompt sent to your phone. Complete it to finish checkout.', 'success');
+        // Do NOT clear cart yet. Mark as pending and poll for payment confirmation.
+        const checkoutRequestId = mpesaData?.data?.CheckoutRequestID || mpesaData?.data?.checkoutRequestID || null;
+        setPendingOrder({ orderId: finalOrderId, checkoutRequestId });
+        // start polling
+        startPaymentPolling(finalOrderId);
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      showNotification(err.message || 'Checkout failed', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const applyFilters = () => {
     setShowFilters(false);
   };
@@ -267,11 +434,172 @@ const BuyerDashboard = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // Payment polling: check order payment status until it becomes paid/failed
+  const paymentPollRef = useRef(null);
+  const startPaymentPolling = (orderId) => {
+    if (!orderId) return;
+    // avoid multiple intervals
+    if (paymentPollRef.current) return;
+    setIsCheckingPayment(true);
+    paymentPollRef.current = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const resp = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.ORDERS}/${orderId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) }
+        });
+        if (!resp.ok) return;
+        const data = await resp.json().catch(() => ({}));
+        const status = data?.order?.paymentStatus || data?.order?.payment_status || null;
+        if (status === 'paid') {
+          // Payment confirmed
+          clearInterval(paymentPollRef.current);
+          paymentPollRef.current = null;
+          setIsCheckingPayment(false);
+          setPendingOrder(null);
+          setCart([]); // now clear cart
+          showNotification('Payment confirmed — order completed', 'success');
+        } else if (status === 'failed' || data?.order?.status === 'cancelled') {
+          clearInterval(paymentPollRef.current);
+          paymentPollRef.current = null;
+          setIsCheckingPayment(false);
+          setPendingOrder(null);
+          showNotification('Payment failed or order cancelled. Your cart was not cleared.', 'error');
+        }
+      } catch (e) {
+        // ignore poll errors
+      }
+    }, 5000); // poll every 5s
+  };
+
+  // Stop polling on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentPollRef.current) clearInterval(paymentPollRef.current);
+    };
+  }, []);
+
+  const checkPaymentNow = async () => {
+    if (!pendingOrder?.orderId) return;
+    setIsCheckingPayment(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.ORDERS}/${pendingOrder.orderId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) }
+      });
+      if (!resp.ok) {
+        showNotification('Failed to check payment status', 'error');
+        setIsCheckingPayment(false);
+        return;
+      }
+      const data = await resp.json().catch(() => ({}));
+      const status = data?.order?.paymentStatus || data?.order?.payment_status || null;
+      if (status === 'paid') {
+        if (paymentPollRef.current) { clearInterval(paymentPollRef.current); paymentPollRef.current = null; }
+        setPendingOrder(null);
+        setCart([]);
+        showNotification('Payment confirmed — order completed', 'success');
+      } else if (status === 'failed' || data?.order?.status === 'cancelled') {
+        if (paymentPollRef.current) { clearInterval(paymentPollRef.current); paymentPollRef.current = null; }
+        setPendingOrder(null);
+        showNotification('Payment failed or order cancelled. Your cart was not cleared.', 'error');
+      } else {
+        showNotification('Payment still pending. Please complete the M-Pesa prompt on your phone.', 'info');
+      }
+    } catch (e) {
+      showNotification('Error checking payment status', 'error');
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  };
+
+  const cancelPendingOrder = async () => {
+    if (!pendingOrder?.orderId) return;
+    const confirm = window.confirm('Cancel this pending order? This will release the reserved stock.');
+    if (!confirm) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.ORDERS}/${pendingOrder.orderId}/cancel`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) }
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to cancel order');
+      }
+      if (paymentPollRef.current) { clearInterval(paymentPollRef.current); paymentPollRef.current = null; }
+      setPendingOrder(null);
+      showNotification('Order cancelled and stock released', 'success');
+    } catch (e) {
+      console.error('Cancel order error:', e);
+      showNotification(e.message || 'Failed to cancel order', 'error');
+    }
+  };
+
   const animateCartIcon = () => {
     const cartButton = document.querySelector('.nav-item[onclick*="cart"]');
     if (cartButton) {
       cartButton.classList.add('pulse');
       setTimeout(() => cartButton.classList.remove('pulse'), 600);
+    }
+  };
+
+  // Address modal helpers
+  const openAddressModal = (prefill = '') => {
+    setAddressInput(prefill || '');
+    setShowAddressModal(true);
+  };
+
+  const closeAddressModal = () => {
+    setShowAddressModal(false);
+    setProceedAfterSave(false);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!addressInput || addressInput.trim() === '') {
+      showNotification('Please enter a valid delivery address', 'error');
+      return;
+    }
+
+    setIsSavingAddress(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.PROFILE}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify({ deliveryAddress: addressInput.trim() })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to save address');
+      }
+
+      const data = await resp.json();
+      // Update user state and localStorage
+      setUser(prev => ({ ...(prev || {}), deliveryAddress: data.deliveryAddress || addressInput.trim() }));
+      localStorage.setItem('deliveryAddress', data.deliveryAddress || addressInput.trim());
+
+      showNotification('Delivery address saved', 'success');
+      setShowAddressModal(false);
+
+      // If checkout flow triggered the modal, continue checkout
+      if (proceedAfterSave) {
+        setProceedAfterSave(false);
+        // Continue the checkout process automatically
+        setTimeout(() => {
+          handleProceedToCheckout();
+        }, 200);
+      }
+    } catch (err) {
+      console.error('Save address error:', err);
+      showNotification(err.message || 'Failed to save address', 'error');
+    } finally {
+      setIsSavingAddress(false);
     }
   };
 
@@ -882,7 +1210,10 @@ const BuyerDashboard = () => {
                       <div className="profile-grid">
                         <div className="profile-field full-width">
                           <label>Delivery Address</label>
-                          <p>{user?.deliveryAddress || 'Not provided'}</p>
+                          <div className="profile-address-row">
+                            <p className="profile-address-text">{user?.deliveryAddress || 'Not provided'}</p>
+                            <button className="edit-address-btn" onClick={() => openAddressModal(user?.deliveryAddress || '')} title="Edit delivery address">Edit</button>
+                          </div>
                         </div>
                         <div className="profile-field">
                           <label>City/Town</label>
@@ -929,6 +1260,19 @@ const BuyerDashboard = () => {
               <div className="tab-header">
                 <h2>🛒 Shopping Cart</h2>
               </div>
+              {/* Pending order banner */}
+              {pendingOrder && (
+                <div className="pending-banner">
+                  <p>
+                    You have a pending payment for order <strong>#{pendingOrder.orderId}</strong>. Your items are reserved for a short time.
+                    Use "Check Payment Now" to verify or "Cancel Order" to release the reservation.
+                  </p>
+                  <div className="pending-actions">
+                    <button className="check-payment-btn" onClick={checkPaymentNow} disabled={isCheckingPayment}>{isCheckingPayment ? 'Checking...' : 'Check Payment Now'}</button>
+                    <button className="cancel-order-btn" onClick={cancelPendingOrder}>Cancel Order</button>
+                  </div>
+                </div>
+              )}
               {cart.length === 0 ? (
                 <div className="placeholder-content">
                   <p>Your cart is empty.</p>
@@ -998,8 +1342,12 @@ const BuyerDashboard = () => {
                       <span>Delivery Fee</span>
                       <span>Calculated at checkout</span>
                     </div>
-                    <button className="checkout-btn">
-                      Proceed to Checkout
+                    <button 
+                      className="checkout-btn"
+                      onClick={handleProceedToCheckout}
+                      disabled={isLoading || cart.length === 0 || !!pendingOrder}
+                    >
+                      {pendingOrder ? 'Payment Pending...' : (isLoading ? 'Processing...' : 'Proceed to Checkout')}
                     </button>
                   </div>
                 </div>
@@ -1132,6 +1480,154 @@ const BuyerDashboard = () => {
                     Close
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Address entry modal (opens when buyer has no saved delivery address) */}
+      {showAddressModal && (
+        <div className="modal-overlay" onClick={closeAddressModal}>
+          <div className="product-modal address-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="address-modal-title">
+            <button className="modal-close-btn" onClick={closeAddressModal}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2 id="address-modal-title">Enter delivery address</h2>
+                <p className="subtitle">Save this address to your profile so future checkouts won't ask again.</p>
+              </div>
+
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress">Delivery address</label>
+                  <textarea
+                    id="deliveryAddress"
+                    rows={4}
+                    value={addressInput}
+                    onChange={(e) => setAddressInput(e.target.value)}
+                    placeholder="Enter house number, street, estate/village, nearest landmark"
+                    className="address-textarea"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button className="modal-add-to-cart-btn" onClick={handleSaveAddress} disabled={isSavingAddress}>
+                  {isSavingAddress ? 'Saving...' : 'Save & Continue'}
+                </button>
+                <button className="modal-cancel-btn" onClick={closeAddressModal}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Confirmation Modal (STK Push details) */}
+      {showCheckoutModal && (
+        <div className="modal-overlay" onClick={() => setShowCheckoutModal(false)}>
+          <div className="product-modal checkout-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="checkout-modal-title">
+            <button className="modal-close-btn" onClick={() => setShowCheckoutModal(false)}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            <div className="modal-content">
+              <div className="modal-header">
+                <h2 id="checkout-modal-title">Checkout initiated</h2>
+                <p className="subtitle">An M-Pesa payment prompt was sent to your phone (if available). Below are the request details.</p>
+              </div>
+
+              <div className="modal-body">
+                <div className="detail-item">
+                  <span className="detail-label">Order ID</span>
+                  <span className="detail-value">{lastCheckoutInfo?.orderId || stkResponse?.orderId || '—'}</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">Amount</span>
+                  <span className="detail-value">KES { (lastCheckoutInfo?.amount ?? stkResponse?.amount ?? 0).toFixed ? (lastCheckoutInfo?.amount ?? stkResponse?.amount ?? 0).toFixed(0) : (lastCheckoutInfo?.amount ?? stkResponse?.amount ?? 0) }</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">Items</span>
+                  <span className="detail-value">{lastCheckoutInfo?.itemsCount ?? cart.length} items</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">Delivery Address</span>
+                  <span className="detail-value">{lastCheckoutInfo?.deliveryAddress || user?.deliveryAddress || '—'}</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">Phone</span>
+                  <span className="detail-value">{(lastCheckoutInfo?.phone || stkResponse?.phone || user?.phoneNumber || '—').toString().replace(/(\d{3})(\d{4})(\d{3})/, '$1****$3')}</span>
+                </div>
+
+                <div className="detail-item">
+                  <span className="detail-label">Payment Status</span>
+                  <span className="detail-value">{pendingOrder ? 'Pending (awaiting confirmation)' : ((stkResponse?.ResponseCode ?? stkResponse?.responseCode) ? (stkResponse?.ResponseCode ?? stkResponse?.responseCode) : 'Pending')}</span>
+                </div>
+
+                {stkResponse?.CustomerMessage && (
+                  <div className="detail-item">
+                    <span className="detail-label">Customer Message</span>
+                    <span className="detail-value">{stkResponse.CustomerMessage}</span>
+                  </div>
+                )}
+
+                <div className="detail-item">
+                  <span className="detail-label">Requested At</span>
+                  <span className="detail-value">{new Date().toLocaleString()}</span>
+                </div>
+
+                <div className="detail-item" style={{borderBottom: 'none'}}>
+                  <span className="detail-label">Next Steps</span>
+                  <span className="detail-value">Complete the M-Pesa prompt on your phone. If you don't receive it within 60 seconds, check your network or try again. Payment updates will appear in Orders.</span>
+                </div>
+
+                {/* Raw response toggle */}
+                <div className="detail-item" style={{borderBottom: 'none', paddingTop: '0.5rem'}}>
+                  <button className="edit-address-btn" onClick={() => setShowRawDetails(s => !s)}>
+                    {showRawDetails ? 'Hide details' : 'Show raw response'}
+                  </button>
+                </div>
+
+                {pendingOrder?.checkoutRequestId && (
+                  <div className="detail-item">
+                    <span className="detail-label">CheckoutRequestID</span>
+                    <span className="detail-value">{pendingOrder.checkoutRequestId}</span>
+                  </div>
+                )}
+
+                {showRawDetails && (
+                  <div className="detail-item" style={{borderBottom: 'none'}}>
+                    <span className="detail-label">Raw Response</span>
+                    <pre className="raw-response">{JSON.stringify(stkResponse, null, 2)}</pre>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-actions">
+                {pendingOrder ? (
+                  <>
+                    <button className="modal-cancel-btn" onClick={() => { setShowCheckoutModal(false); }}>{isCheckingPayment ? 'Checking...' : 'Close'}</button>
+                    <button className="modal-add-to-cart-btn" onClick={() => { checkPaymentNow(); }}>{isCheckingPayment ? 'Checking...' : 'Check Payment Now'}</button>
+                    <button className="modal-cancel-btn" onClick={() => { cancelPendingOrder(); }}>Cancel Order</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="modal-cancel-btn" onClick={() => setShowCheckoutModal(false)}>Close</button>
+                    <button className="modal-add-to-cart-btn" onClick={() => { setShowCheckoutModal(false); navigate('/orders'); }}>View Orders</button>
+                  </>
+                )}
               </div>
             </div>
           </div>

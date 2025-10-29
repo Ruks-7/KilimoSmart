@@ -197,6 +197,7 @@ router.post('/orders', async (req, res) => {
 
     // Calculate total amount and validate products
     let totalAmount = 0;
+    const farmerIds = new Set();
     for (const item of items) {
       if (!item.product_id || !item.quantity || !item.price_per_unit) {
         return res.status(400).json({
@@ -207,7 +208,7 @@ router.post('/orders', async (req, res) => {
 
       // Verify product availability
       const productCheck = await query(
-        'SELECT quantity_available, status FROM PRODUCT WHERE product_id = $1',
+        'SELECT quantity_available, status, farmer_id FROM PRODUCT WHERE product_id = $1',
         [item.product_id]
       );
 
@@ -232,31 +233,45 @@ router.post('/orders', async (req, res) => {
         });
       }
 
+      // collect farmer ids to ensure single-farmer order
+      if (productCheck.rows[0].farmer_id) farmerIds.add(productCheck.rows[0].farmer_id);
+
       totalAmount += item.quantity * item.price_per_unit;
     }
+
+    // Ensure all items belong to the same farmer (current schema requires a single farmer_id per order)
+    if (farmerIds.size === 0) {
+      return res.status(400).json({ success: false, message: 'Unable to determine farmer for the order items' });
+    }
+    if (farmerIds.size > 1) {
+      return res.status(400).json({ success: false, message: 'All items in an order must belong to the same farmer. Please place separate orders per farmer.' });
+    }
+    const farmerId = Array.from(farmerIds)[0];
 
     // Create order
     const orderResult = await query(
       `INSERT INTO "ORDER" (
         buyer_id,
+        farmer_id,
         order_date,
         total_amount,
         delivery_address,
         delivery_date,
         status,
         payment_status,
-        payment_method,
+        delivery_instructions,
         notes
-      ) VALUES ($1, CURRENT_TIMESTAMP, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8, $9)
       RETURNING order_id, order_date, total_amount, status`,
       [
         buyerId,
+        farmerId,
         totalAmount,
         delivery_address,
         delivery_date || null,
         'pending',
         'pending',
-        payment_method || 'M-Pesa',
+        null,
         notes || null,
       ]
     );
@@ -270,8 +285,8 @@ router.post('/orders', async (req, res) => {
         `INSERT INTO ORDER_ITEMS (
           order_id,
           product_id,
-          quantity,
-          price_per_unit,
+          quantity_ordered,
+          unit_price,
           subtotal
         ) VALUES ($1, $2, $3, $4, $5)`,
         [
@@ -291,6 +306,26 @@ router.post('/orders', async (req, res) => {
         WHERE product_id = $2`,
         [item.quantity, item.product_id]
       );
+    }
+
+    // Create a reservation record so that stock can be released if payment fails or times out
+    try {
+      await query(
+        `CREATE TABLE IF NOT EXISTS ORDER_RESERVATION (
+           reservation_id SERIAL PRIMARY KEY,
+           order_id INTEGER UNIQUE NOT NULL,
+           expires_at TIMESTAMP NOT NULL,
+           released BOOLEAN DEFAULT FALSE,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         )`);
+
+      await query(
+        `INSERT INTO ORDER_RESERVATION (order_id, expires_at) VALUES ($1, CURRENT_TIMESTAMP + INTERVAL '15 minutes') ON CONFLICT (order_id) DO UPDATE SET expires_at = EXCLUDED.expires_at, released = FALSE`,
+        [orderId]
+      );
+    } catch (e) {
+      console.error('Failed to create/insert order reservation:', e.message || e);
+      // not fatal for order creation
     }
 
     return res.status(201).json({
@@ -490,10 +525,8 @@ router.put('/orders/:id/cancel', async (req, res) => {
   }
 });
 
-/**
- * GET /api/buyer/categories
- * Get all product categories
- */
+
+// Get all product categories
 router.get('/categories', async (req, res) => {
   try {
     const result = await query(
@@ -518,10 +551,8 @@ router.get('/categories', async (req, res) => {
   }
 });
 
-/**
- * GET /api/buyer/profile
- * Get buyer profile information
- */
+
+// Get buyer profile information
 router.get('/profile', async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -568,21 +599,22 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-/**
- * PUT /api/buyer/profile
- * Update buyer profile information
- */
+
+// Update buyer profile information
 router.put('/profile', async (req, res) => {
   try {
     const userId = req.user.userId;
     const { firstName, lastName, phoneNumber, deliveryAddress } = req.body;
 
-    // Update USER table
+    // Update USER table - allow partial updates by keeping existing values when fields are not provided
     await query(
-      `UPDATE "USER" 
-       SET first_name = $1, last_name = $2, phone_number = $3, updated_at = NOW()
+      `UPDATE "USER"
+       SET first_name = COALESCE($1, first_name),
+           last_name = COALESCE($2, last_name),
+           phone_number = COALESCE($3, phone_number),
+           updated_at = NOW()
        WHERE user_id = $4`,
-      [firstName, lastName, phoneNumber, userId]
+      [firstName || null, lastName || null, phoneNumber || null, userId]
     );
 
     // Update BUYER table

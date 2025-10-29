@@ -8,6 +8,8 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const farmerRoutes = require('./routes/farmer');
 const buyerRoutes = require('./routes/buyer');
+const mpesaRoutes = require('./routes/mpesa');
+const { startReservationCleaner } = require('./utils/reservationCleaner');
 
 // Initialize Express app
 const app = express();
@@ -71,6 +73,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
+app.use('/api/mpesa', mpesaRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -140,6 +143,13 @@ app.listen(PORT, () => {
   console.log('  GET  /api/buyer/categories');
   console.log('='.repeat(50));
 });
+
+// Start reservation cleaner background job
+try {
+  startReservationCleaner();
+} catch (e) {
+  console.error('Failed to start reservation cleaner:', e.message || e);
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
