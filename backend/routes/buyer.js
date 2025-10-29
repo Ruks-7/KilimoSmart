@@ -428,8 +428,8 @@ router.get('/orders/:id', async (req, res) => {
         oi.product_id as "productId",
         p.product_name as "productName",
         p.category,
-        oi.quantity,
-        oi.price_per_unit as "pricePerUnit",
+        oi.quantity_ordered as quantity,
+        oi.unit_price as "pricePerUnit",
         oi.subtotal,
         f.first_name || ' ' || f.last_name as "farmerName"
       FROM ORDER_ITEMS oi
@@ -487,7 +487,7 @@ router.put('/orders/:id/cancel', async (req, res) => {
 
     // Restore product quantities
     const itemsResult = await query(
-      'SELECT product_id, quantity FROM ORDER_ITEMS WHERE order_id = $1',
+      'SELECT product_id, quantity_ordered as quantity FROM ORDER_ITEMS WHERE order_id = $1',
       [orderId]
     );
 
