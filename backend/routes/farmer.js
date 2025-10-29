@@ -125,6 +125,98 @@ router.get('/orders', async (req, res) => {
 });
 
 /**
+ * PUT /api/farmer/orders/:id/status
+ * Update order status (confirm/reject) for orders containing farmer's products
+ */
+router.put('/orders/:id/status', async (req, res) => {
+  try {
+    const farmerId = req.user.farmerId || req.user.userId;
+    const orderId = req.params.id;
+    const { status, notes } = req.body;
+
+    // Validate status
+    if (!['confirmed', 'cancelled'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be "confirmed" or "cancelled"'
+      });
+    }
+
+    // Check if order exists and belongs to this farmer
+    const orderCheck = await query(
+      `SELECT o.order_id, o.status, o.buyer_id
+       FROM "ORDER" o
+       JOIN ORDER_ITEMS oi ON o.order_id = oi.order_id
+       JOIN PRODUCT p ON oi.product_id = p.product_id
+       WHERE o.order_id = $1 AND p.farmer_id = $2
+       LIMIT 1`,
+      [orderId, farmerId]
+    );
+
+    if (orderCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found or does not belong to you'
+      });
+    }
+
+    const currentOrder = orderCheck.rows[0];
+
+    // Check if order can be updated
+    if (currentOrder.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Order is already ${currentOrder.status} and cannot be modified`
+      });
+    }
+
+    // Update order status
+    await query(
+      `UPDATE "ORDER" 
+       SET status = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE order_id = $2`,
+      [status, orderId]
+    );
+
+    // If cancelling order, restore product quantities
+    if (status === 'cancelled') {
+      const itemsResult = await query(
+        'SELECT product_id, quantity_ordered FROM ORDER_ITEMS WHERE order_id = $1',
+        [orderId]
+      );
+
+      for (const item of itemsResult.rows) {
+        await query(
+          'UPDATE PRODUCT SET quantity_available = quantity_available + $1, updated_at = CURRENT_TIMESTAMP WHERE product_id = $2',
+          [item.quantity_ordered, item.product_id]
+        );
+      }
+
+      // Mark reservation as released
+      await query(
+        'UPDATE ORDER_RESERVATION SET released = TRUE WHERE order_id = $1',
+        [orderId]
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Order ${status} successfully`,
+      orderId: orderId,
+      status: status
+    });
+
+  } catch (error) {
+    console.error('Update order status error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update order status',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
  * GET /api/farmer/payments
  * Get payment history for the authenticated farmer using PAYMENT table
  */

@@ -460,16 +460,46 @@ const FarmerDashboard = () => {
     };
 
     const handleOrderAction = async (orderId, action) => {
-        const actionText = action === 'confirm' ? 'confirmed' : 'rejected';
+        const actionText = action === 'confirm' ? 'confirmed' : 'cancelled';
+        const status = action === 'confirm' ? 'confirmed' : 'cancelled';
+        
         if (window.confirm(`Are you sure you want to ${action} this order?`)) {
             try {
-                // Add API call to update order status
-                console.log('Order action:', orderId, action);
+                const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+                
+                if (!token) {
+                    showNotificationMessage('Please login to continue', 'error');
+                    navigate('/loginF');
+                    return;
+                }
+
+                // Call API to update order status
+                const response = await fetch(`${API_CONFIG.ENDPOINTS.FARMER.ORDERS}/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        status: status,
+                        notes: `Order ${actionText} by farmer`
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Failed to ${action} order`);
+                }
+
+                const result = await response.json();
+                console.log('Order action result:', result);
+                
                 showNotificationMessage(`Order #${orderId} ${actionText} successfully! ✓`, 'success');
-                fetchDashboardData();
+                fetchDashboardData(); // Refresh dashboard data
+                
             } catch (error) {
                 console.error('Error updating order:', error);
-                showNotificationMessage(`Failed to ${action} order.`, 'error');
+                showNotificationMessage(`Failed to ${action} order: ${error.message}`, 'error');
             }
         }
     };
