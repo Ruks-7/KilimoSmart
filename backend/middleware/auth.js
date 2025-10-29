@@ -117,9 +117,23 @@ const requireUser = (req, res, next) => {
   next();
 };
 
+/**
+ * Middleware to check if user has admin role
+ */
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Admin role required.',
+    });
+  }
+  next();
+};
+
 module.exports = {
   authenticateToken,
   requireFarmer,
   requireBuyer,
   requireUser,
+  requireAdmin,
 };

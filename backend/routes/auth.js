@@ -648,6 +648,24 @@ router.post('/buyer/verify-credentials', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/admin/login
+ * Admin credential login - returns JWT on success
+ */
+router.post('/admin/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (email === adminEmail && password === adminPassword) {
+    const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    return res.json({ success: true, token });
+  }
+
+  return res.status(401).json({ success: false, message: 'Invalid credentials' });
+});
+
+/**
  * POST /api/auth/buyer/signup
  * Create buyer account
  */

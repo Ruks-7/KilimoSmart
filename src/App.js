@@ -13,6 +13,12 @@ import './landingPage.css';
 import './Farmer/Auth/Styling/auth.css';
 import './Buyer/Auth/Styling/auth.css';
 import './Buyer/Auth/Styling/dashboard.css';
+import DashboardAdmin from './Admin/Dashboard';
+import AdminUsers from './Admin/Users';
+import AdminTransactions from './Admin/Transactions';
+import AdminReports from './Admin/Reports';
+import AdminLogin from './Admin/loginAdmin';
+import './Admin/Styling/admin.css';
 
 
 function App() {
@@ -25,6 +31,11 @@ function App() {
       <Route path="/signupFarmer" element={<SignupFarmer />} />
       <Route path="/loginF" element={<LoginFarmer />} />
       <Route path="/farmer/dashboard" element={<FarmerDashboard />} />
+      <Route path="/admin" element={<DashboardAdmin />} />
+  <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin/users" element={<AdminUsers />} />
+      <Route path="/admin/transactions" element={<AdminTransactions />} />
+      <Route path="/admin/reports" element={<AdminReports />} />
     </Routes>
   );
 }

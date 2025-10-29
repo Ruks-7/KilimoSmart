@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const farmerRoutes = require('./routes/farmer');
 const buyerRoutes = require('./routes/buyer');
 const mpesaRoutes = require('./routes/mpesa');
+const adminRoutes = require('./routes/admin');
 const { startReservationCleaner } = require('./utils/reservationCleaner');
 
 // Initialize Express app
@@ -74,6 +75,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
 app.use('/api/mpesa', mpesaRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -141,6 +143,10 @@ app.listen(PORT, () => {
   console.log('  GET  /api/buyer/orders/:id');
   console.log('  PUT  /api/buyer/orders/:id/cancel');
   console.log('  GET  /api/buyer/categories');
+  console.log('\n  🔧 Admin Routes (Protected):');
+  console.log('  GET  /api/admin/users');
+  console.log('  GET  /api/admin/transactions');
+  console.log('  GET  /api/admin/stats');
   console.log('='.repeat(50));
 });
 

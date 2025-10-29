@@ -26,6 +26,7 @@ const API_ENDPOINTS = {
     FARMER_SIGNUP: `${API_BASE_URL}/api/auth/farmer/signup`,
     BUYER_SIGNUP: `${API_BASE_URL}/api/auth/buyer/signup`,
     VERIFY_TOKEN: `${API_BASE_URL}/api/auth/verify`,
+    ADMIN_LOGIN: `${API_BASE_URL}/api/auth/admin/login`,
   },
   
   // Buyer endpoints
@@ -49,6 +50,14 @@ const API_ENDPOINTS = {
     ORDERS: `${API_BASE_URL}/api/farmer/orders`,
     PAYMENTS: `${API_BASE_URL}/api/farmer/payments`,
     PRODUCT_PHOTOS: (productId) => `${API_BASE_URL}/api/farmer/products/${productId}/photos`,
+  },
+  
+  // Admin endpoints
+  ADMIN: {
+    USERS: `${API_BASE_URL}/api/admin/users`,
+    TRANSACTIONS: `${API_BASE_URL}/api/admin/transactions`,
+    STATS: `${API_BASE_URL}/api/admin/stats`,
+    SALES_OVER_TIME: `${API_BASE_URL}/api/admin/sales-over-time`,
   },
 };
 
@@ -78,7 +87,11 @@ export const apiCall = async (url, options = {}) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP Error: ${response.status}`);
+      const err = new Error(errorData.message || `HTTP Error: ${response.status}`);
+      // attach status and raw data for callers to inspect
+      err.status = response.status;
+      err.data = errorData;
+      throw err;
     }
 
     return await response.json();
