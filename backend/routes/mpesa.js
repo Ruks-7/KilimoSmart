@@ -81,14 +81,17 @@ router.get('/token', async (req, res) => {
 // STK Push initiation
 router.post('/stkpush', async (req, res) => {
   try {
+    console.log('STK Push request body:', JSON.stringify(req.body, null, 2));
     const { phone, amount, orderId, accountReference, transactionDesc } = req.body;
 
     if (!phone || !amount || !orderId) {
+      console.log('Missing required fields:', { phone: !!phone, amount: !!amount, orderId: !!orderId });
       return res.status(400).json({ success: false, message: 'phone, amount and orderId are required' });
     }
 
     // Normalize and validate phone server-side to avoid Daraja 'Invalid PhoneNumber' errors
     const normalizedPhone = normalizePhone(phone);
+    console.log('Original phone:', phone, 'Normalized:', normalizedPhone);
     if (!normalizedPhone) {
       return res.status(400).json({
         success: false,
@@ -146,9 +149,26 @@ router.post('/stkpush', async (req, res) => {
 
     return res.status(200).json({ success: true, data: body });
   } catch (error) {
-    console.error('STK Push initiation error:', error.response ? error.response.data : error.message || error);
+    console.error('STK Push initiation error details:');
+    console.error('Error message:', error.message);
+    console.error('Error response status:', error.response?.status);
+    console.error('Error response data:', JSON.stringify(error.response?.data, null, 2));
+    console.error('Full error:', error);
+
     const status = error.response && error.response.status ? error.response.status : 500;
-    return res.status(status).json({ success: false, message: error.message || 'STK push failed', details: error.response ? error.response.data : undefined });
+    return res.status(status).json({
+      success: false,
+      message: error.message || 'STK push failed',
+      details: error.response ? error.response.data : undefined,
+      requestPayload: {
+        phone: normalizedPhone,
+        amount,
+        orderId,
+        shortcode: process.env.MPESA_SHORTCODE ? 'SET' : 'NOT SET',
+        passkey: process.env.MPESA_PASSKEY ? 'SET' : 'NOT SET',
+        env: process.env.MPESA_ENV
+      }
+    });
   }
 });
 

@@ -54,6 +54,17 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
+
+// Add logging for M-Pesa routes
+app.use('/api/mpesa', (req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/admin', adminRoutes);
 
@@ -61,6 +72,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/auth', authRoutes);
 app.use('/farmer', farmerRoutes);
 app.use('/buyer', buyerRoutes);
+app.use('/mpesa', mpesaRoutes);
+app.use('/admin', adminRoutes);
 app.use('/mpesa', mpesaRoutes);
 app.use('/admin', adminRoutes);
 
