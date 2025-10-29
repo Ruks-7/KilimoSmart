@@ -6,6 +6,8 @@ const fileUpload = require('express-fileupload');
 const authRoutes = require('../backend/routes/auth');
 const farmerRoutes = require('../backend/routes/farmer');
 const buyerRoutes = require('../backend/routes/buyer');
+const mpesaRoutes = require('../backend/routes/mpesa');
+const adminRoutes = require('../backend/routes/admin');
 
 const app = express();
 
@@ -52,11 +54,15 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
+app.use('/api/mpesa', mpesaRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Also mount routes without /api prefix (for Vercel routing)
 app.use('/auth', authRoutes);
 app.use('/farmer', farmerRoutes);
 app.use('/buyer', buyerRoutes);
+app.use('/mpesa', mpesaRoutes);
+app.use('/admin', adminRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
