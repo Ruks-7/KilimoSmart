@@ -138,9 +138,9 @@ router.post('/stkpush', async (req, res) => {
 
     try {
       await query(
-        `INSERT INTO PAYMENT (order_id, amount, payment_method, payment_status, transaction_reference, created_at)
-         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
-        [orderId, amount, 'M-Pesa', 'pending', checkoutRequestId]
+        `INSERT INTO PAYMENT (order_id, amount, payment_method, payment_status, transaction_reference, farmer_amount, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`,
+        [orderId, amount, 'M-Pesa', 'pending', checkoutRequestId, amount] // farmer_amount = amount (no platform fee for now)
       );
     } catch (dbErr) {
       // Don't block caller if DB insert fails; just log
@@ -225,16 +225,8 @@ router.post('/callback', async (req, res) => {
         }
       } else {
         console.warn('No matching payment for CheckoutRequestID:', checkoutRequestId);
-        // Optionally insert a record
-        try {
-          await query(
-            `INSERT INTO PAYMENT (order_id, amount, payment_method, payment_status, mpesa_transaction_id, transaction_reference, created_at, payment_date)
-             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-            [null, amount || null, 'M-Pesa', 'completed', mpesaReceiptNumber || null, checkoutRequestId]
-          );
-        } catch (e) {
-          console.error('Failed to insert fallback payment record:', e.message || e);
-        }
+        // Skip inserting fallback payment record since we don't have order_id (required field)
+        console.log('Skipping fallback payment insert - no order_id available for transaction:', mpesaReceiptNumber || checkoutRequestId);
       }
     } else {
       console.warn('MPESA transaction failed or cancelled:', resultCode, resultDesc);

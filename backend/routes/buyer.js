@@ -408,7 +408,6 @@ router.get('/orders/:id', async (req, res) => {
         o.delivery_date as "deliveryDate",
         o.status,
         o.payment_status as "paymentStatus",
-        o.payment_method as "paymentMethod",
         o.notes
       FROM "ORDER" o
       WHERE o.order_id = $1 AND o.buyer_id = $2`,
