@@ -37,6 +37,14 @@ router.get('/products', async (req, res) => {
         p.expiry_date as "expiryDate",
         p.is_organic as "isOrganic",
         p.status,
+        p.is_preorder as "isPreorder",
+        p.expected_harvest_date as "expectedHarvestDate",
+        p.preorder_deadline as "preorderDeadline",
+        p.preorder_quantity as "preorderQuantity",
+        p.preorder_reserved_quantity as "preorderReservedQuantity",
+        p.min_preorder_quantity as "minPreorderQuantity",
+        p.is_perishable as "isPerishable",
+        p.estimated_shelf_life_days as "estimatedShelfLifeDays",
         p.created_at as "createdAt",
         p.updated_at as "updatedAt"
       FROM PRODUCT p
@@ -282,6 +290,13 @@ router.post('/products', async (req, res) => {
       is_organic,
       status,
       main_photo_index,
+      is_preorder,
+      expected_harvest_date,
+      preorder_deadline,
+      preorder_quantity,
+      min_preorder_quantity,
+      is_perishable,
+      estimated_shelf_life_days
     } = req.body;
 
     // Validate required fields
@@ -290,6 +305,16 @@ router.post('/products', async (req, res) => {
         success: false,
         message: 'Missing required fields: product_name, category, quantity_available, unit_of_measure, price_per_unit',
       });
+    }
+
+    // Validate pre-order fields if pre-order is enabled
+    if (is_preorder === 'true' || is_preorder === true) {
+      if (!expected_harvest_date || !preorder_deadline || !preorder_quantity) {
+        return res.status(400).json({
+          success: false,
+          message: 'Pre-order requires: expected_harvest_date, preorder_deadline, and preorder_quantity',
+        });
+      }
     }
 
     // Validate numeric fields
@@ -315,7 +340,7 @@ router.post('/products', async (req, res) => {
       });
     }
 
-    // Insert product first
+    // Insert product with pre-order fields
     const result = await query(
       `INSERT INTO PRODUCT (
         farmer_id, 
@@ -328,8 +353,15 @@ router.post('/products', async (req, res) => {
         harvest_date, 
         expiry_date, 
         is_organic, 
-        status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        status,
+        is_preorder,
+        expected_harvest_date,
+        preorder_deadline,
+        preorder_quantity,
+        min_preorder_quantity,
+        is_perishable,
+        estimated_shelf_life_days
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING 
         product_id as id,
         product_name as name,
@@ -342,6 +374,14 @@ router.post('/products', async (req, res) => {
         expiry_date as "expiryDate",
         is_organic as "isOrganic",
         status,
+        is_preorder as "isPreorder",
+        expected_harvest_date as "expectedHarvestDate",
+        preorder_deadline as "preorderDeadline",
+        preorder_quantity as "preorderQuantity",
+        preorder_reserved_quantity as "preorderReservedQuantity",
+        min_preorder_quantity as "minPreorderQuantity",
+        is_perishable as "isPerishable",
+        estimated_shelf_life_days as "estimatedShelfLifeDays",
         created_at as "createdAt"`,
       [
         farmerId,
@@ -355,6 +395,13 @@ router.post('/products', async (req, res) => {
         expiry_date || null,
         is_organic || false,
         status || 'available',
+        is_preorder || false,
+        is_preorder === 'true' || is_preorder === true ? expected_harvest_date : null,
+        is_preorder === 'true' || is_preorder === true ? preorder_deadline : null,
+        is_preorder === 'true' || is_preorder === true ? (preorder_quantity || quantity_available) : 0,
+        is_preorder === 'true' || is_preorder === true ? (min_preorder_quantity || 0) : 0,
+        is_perishable || false,
+        is_perishable === 'true' || is_perishable === true ? (estimated_shelf_life_days || null) : null
       ]
     );
 

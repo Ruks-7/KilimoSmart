@@ -51,7 +51,14 @@ const FarmerDashboard = () => {
         description: '',
         isOrganic: false,
         harvestDate: '',
-        expiryDate: ''
+        expiryDate: '',
+        isPreorder: false,
+        expectedHarvestDate: '',
+        preorderDeadline: '',
+        preorderQuantity: '',
+        minPreorderQuantity: '',
+        isPerishable: false,
+        estimatedShelfLifeDays: ''
     });
 
     // Detect mobile device on component mount (ONLY by user agent, not screen size)
@@ -276,10 +283,31 @@ const FarmerDashboard = () => {
 
     const handleProductFormChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setProductForm(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        
+        // Auto-set perishability based on category
+        if (name === 'category') {
+            const perishableCategories = ['Vegetables', 'Fruits'];
+            const isPerishable = perishableCategories.includes(value);
+            setProductForm(prev => ({
+                ...prev,
+                [name]: value,
+                isPerishable: isPerishable,
+                // Set default shelf life for perishable items
+                estimatedShelfLifeDays: isPerishable ? (value === 'Vegetables' ? '7' : '5') : '',
+                // Disable pre-order for non-perishable items
+                isPreorder: isPerishable ? prev.isPreorder : false,
+                // Reset pre-order fields if switching to non-perishable
+                expectedHarvestDate: isPerishable ? prev.expectedHarvestDate : '',
+                preorderDeadline: isPerishable ? prev.preorderDeadline : '',
+                preorderQuantity: isPerishable ? prev.preorderQuantity : '',
+                minPreorderQuantity: isPerishable ? prev.minPreorderQuantity : ''
+            }));
+        } else {
+            setProductForm(prev => ({
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value
+            }));
+        }
     };
 
     const handleCameraCapture = async (photos) => {
@@ -318,29 +346,38 @@ const FarmerDashboard = () => {
             description: '',
             isOrganic: false,
             harvestDate: '',
-            expiryDate: ''
+            expiryDate: '',
+            isPreorder: false,
+            expectedHarvestDate: '',
+            preorderDeadline: '',
+            preorderQuantity: '',
+            minPreorderQuantity: '',
+            isPerishable: false,
+            estimatedShelfLifeDays: ''
         });
     };
 
     const handleAddProduct = async (e) => {
         e.preventDefault();
         
-        // Get current GPS location before submitting
+        // Get current GPS location before submitting (only for new products)
         let locationData = null;
-        try {
-            const result = await getLocation();
-            console.log('📍 Location capture result:', result);
-            if (result.success && result.location) {
-                locationData = result.location;
-                console.log('📍 Location data captured:', locationData);
+        if (!selectedProduct) {
+            try {
+                const result = await getLocation();
+                console.log('📍 Location capture result:', result);
+                if (result.success && result.location) {
+                    locationData = result.location;
+                    console.log('📍 Location data captured:', locationData);
+                }
+            } catch (err) {
+                console.warn('⚠️ Could not capture GPS location:', err);
+                // Continue even if location fails - it's not mandatory
             }
-        } catch (err) {
-            console.warn('⚠️ Could not capture GPS location:', err);
-            // Continue even if location fails - it's not mandatory
         }
         
-        // Validate that photos are captured (mandatory on mobile)
-        if (isMobile && productPhotos.length === 0) {
+        // Validate that photos are captured (mandatory on mobile for new products only)
+        if (isMobile && productPhotos.length === 0 && !selectedProduct) {
             showNotificationMessage('📸 Please capture at least one product photo before submitting', 'error');
             return;
         }
@@ -376,7 +413,22 @@ const FarmerDashboard = () => {
             formData.append('harvest_date', productForm.harvestDate || '');
             formData.append('expiry_date', productForm.expiryDate || '');
             formData.append('is_organic', productForm.isOrganic);
-            formData.append('status', 'available');
+            formData.append('status', productForm.isPreorder ? 'preorder' : 'available');
+            
+            // Add pre-order fields
+            formData.append('is_preorder', productForm.isPreorder);
+            if (productForm.isPreorder) {
+                formData.append('expected_harvest_date', productForm.expectedHarvestDate);
+                formData.append('preorder_deadline', productForm.preorderDeadline);
+                formData.append('preorder_quantity', parseFloat(productForm.preorderQuantity || productForm.quantity));
+                formData.append('min_preorder_quantity', parseFloat(productForm.minPreorderQuantity || 0));
+            }
+            
+            // Add perishability data
+            formData.append('is_perishable', productForm.isPerishable);
+            if (productForm.isPerishable && productForm.estimatedShelfLifeDays) {
+                formData.append('estimated_shelf_life_days', parseInt(productForm.estimatedShelfLifeDays));
+            }
             
             // Add GPS location if available (use the returned data, not state)
             if (locationData) {
@@ -394,14 +446,16 @@ const FarmerDashboard = () => {
                 formData.append('product_id', selectedProduct.id);
             }
             
-            // Add photos to FormData
-            productPhotos.forEach((photo, index) => {
-                formData.append('photos', photo);
-                // Mark the first photo as the main photo
-                if (index === 0) {
-                    formData.append('main_photo_index', '0');
-                }
-            });
+            // Add photos to FormData (only for new products or if photos were re-captured during edit)
+            if (productPhotos.length > 0) {
+                productPhotos.forEach((photo, index) => {
+                    formData.append('photos', photo);
+                    // Mark the first photo as the main photo
+                    if (index === 0) {
+                        formData.append('main_photo_index', '0');
+                    }
+                });
+            }
 
             const response = await fetch(API_CONFIG.ENDPOINTS.FARMER.PRODUCTS, {
                 method: selectedProduct ? 'PUT' : 'POST',
@@ -435,7 +489,14 @@ const FarmerDashboard = () => {
                 description: '',
                 isOrganic: false,
                 harvestDate: '',
-                expiryDate: ''
+                expiryDate: '',
+                isPreorder: false,
+                expectedHarvestDate: '',
+                preorderDeadline: '',
+                preorderQuantity: '',
+                minPreorderQuantity: '',
+                isPerishable: false,
+                estimatedShelfLifeDays: ''
             });
             setProductPhotos([]); // Clear photos
             setSelectedProduct(null);
@@ -937,10 +998,17 @@ const FarmerDashboard = () => {
                                                                 quantity: product.quantity,
                                                                 unit: product.unit,
                                                                 pricePerUnit: product.pricePerUnit,
-                                                                description: '',
-                                                                isOrganic: false,
-                                                                harvestDate: product.harvestDate,
-                                                                expiryDate: ''
+                                                                description: product.description || '',
+                                                                isOrganic: product.isOrganic || false,
+                                                                harvestDate: product.harvestDate || '',
+                                                                expiryDate: product.expiryDate || '',
+                                                                isPreorder: product.isPreorder || false,
+                                                                expectedHarvestDate: product.expectedHarvestDate || '',
+                                                                preorderDeadline: product.preorderDeadline || '',
+                                                                preorderQuantity: product.preorderQuantity || '',
+                                                                minPreorderQuantity: product.minPreorderQuantity || '',
+                                                                isPerishable: product.isPerishable || false,
+                                                                estimatedShelfLifeDays: product.estimatedShelfLifeDays || ''
                                                             });
                                                             setShowProductModal(true);
                                                         }}
@@ -1431,6 +1499,18 @@ const FarmerDashboard = () => {
                             </button>
                         </div>
                         <form onSubmit={handleAddProduct} className="product-form">
+                            {selectedProduct && (
+                                <div style={{
+                                    backgroundColor: '#e7f3ff',
+                                    border: '1px solid #4a90e2',
+                                    borderRadius: '8px',
+                                    padding: '12px',
+                                    marginBottom: '1.5rem',
+                                    color: '#1a5490'
+                                }}>
+                                    <strong>ℹ️ Editing Mode:</strong> Update product details below. Photos cannot be changed when editing.
+                                </div>
+                            )}
                             <div className="form-row">
                                 <div className="form-group">
                                     <label>Product Name *</label>
@@ -1453,10 +1533,13 @@ const FarmerDashboard = () => {
                                         <option value="">Select Category</option>
                                         <option value="Cereals">Cereals</option>
                                         <option value="Legumes">Legumes</option>
-                                        <option value="Vegetables">Vegetables</option>
-                                        <option value="Fruits">Fruits</option>
+                                        <option value="Vegetables">🌱 Vegetables (Pre-order available)</option>
+                                        <option value="Fruits">🌱 Fruits (Pre-order available)</option>
                                         <option value="Root Crops">Root Crops</option>
                                     </select>
+                                    <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                                        Pre-ordering is only available for perishable goods (Vegetables & Fruits)
+                                    </small>
                                 </div>
                             </div>
 
@@ -1499,15 +1582,145 @@ const FarmerDashboard = () => {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Harvest Date</label>
+                                    <label>Harvest Date {!productForm.isPreorder && '(Optional)'}</label>
                                     <input
                                         type="date"
                                         name="harvestDate"
                                         value={productForm.harvestDate}
                                         onChange={handleProductFormChange}
+                                        disabled={productForm.isPreorder}
                                     />
                                 </div>
                             </div>
+
+                            {/* Pre-Order Section - Only for Perishable Goods */}
+                            {(productForm.category === 'Vegetables' || productForm.category === 'Fruits') && (
+                            <div className="form-section">
+                                <div className="form-group checkbox-group" style={{ marginBottom: '16px' }}>
+                                    <label style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '8px',
+                                        padding: '12px',
+                                        background: '#f0f8ff',
+                                        borderRadius: '8px',
+                                        border: '2px solid #004a2f'
+                                    }}>
+                                        <input
+                                            type="checkbox"
+                                            name="isPreorder"
+                                            checked={productForm.isPreorder}
+                                            onChange={handleProductFormChange}
+                                        />
+                                        <span style={{ fontWeight: '600', color: '#004a2f' }}>
+                                            🌱 Enable Pre-Order (Advertise before harvest)
+                                        </span>
+                                    </label>
+                                </div>
+
+                                {productForm.isPreorder && (
+                                    <div className="preorder-fields" style={{
+                                        padding: '16px',
+                                        background: '#f8f9fa',
+                                        borderRadius: '8px',
+                                        border: '1px solid #dee2e6',
+                                        marginBottom: '16px'
+                                    }}>
+                                        <h4 style={{ 
+                                            color: '#004a2f', 
+                                            marginBottom: '12px',
+                                            fontSize: '1rem',
+                                            fontWeight: '600'
+                                        }}>
+                                            📅 Pre-Order Details
+                                        </h4>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Expected Harvest Date *</label>
+                                                <input
+                                                    type="date"
+                                                    name="expectedHarvestDate"
+                                                    value={productForm.expectedHarvestDate}
+                                                    onChange={handleProductFormChange}
+                                                    min={new Date().toISOString().split('T')[0]}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Pre-Order Deadline *</label>
+                                                <input
+                                                    type="date"
+                                                    name="preorderDeadline"
+                                                    value={productForm.preorderDeadline}
+                                                    onChange={handleProductFormChange}
+                                                    min={new Date().toISOString().split('T')[0]}
+                                                    max={productForm.expectedHarvestDate}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Pre-Order Quantity Available *</label>
+                                                <input
+                                                    type="number"
+                                                    name="preorderQuantity"
+                                                    value={productForm.preorderQuantity}
+                                                    onChange={handleProductFormChange}
+                                                    placeholder={productForm.quantity || "Enter quantity"}
+                                                    required
+                                                />
+                                                <small style={{ color: '#666', fontSize: '0.85rem' }}>
+                                                    Total quantity available for pre-orders
+                                                </small>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Minimum Order Quantity</label>
+                                                <input
+                                                    type="number"
+                                                    name="minPreorderQuantity"
+                                                    value={productForm.minPreorderQuantity}
+                                                    onChange={handleProductFormChange}
+                                                    placeholder="e.g., 10"
+                                                />
+                                                <small style={{ color: '#666', fontSize: '0.85rem' }}>
+                                                    Minimum qty per buyer (optional)
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            )}
+
+                            {/* Perishability Section */}
+                            {productForm.isPerishable && (
+                                <div className="form-section" style={{
+                                    padding: '12px',
+                                    background: '#fff9e6',
+                                    borderRadius: '8px',
+                                    border: '1px solid #ffa323',
+                                    marginBottom: '16px'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                                        <strong style={{ color: '#856404' }}>Perishable Product</strong>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Estimated Shelf Life (days)</label>
+                                        <input
+                                            type="number"
+                                            name="estimatedShelfLifeDays"
+                                            value={productForm.estimatedShelfLifeDays}
+                                            onChange={handleProductFormChange}
+                                            placeholder="e.g., 7"
+                                        />
+                                        <small style={{ color: '#666', fontSize: '0.85rem' }}>
+                                            How many days will this product stay fresh after harvest?
+                                        </small>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="form-group">
                                 <label>Description</label>
@@ -1533,8 +1746,20 @@ const FarmerDashboard = () => {
 
                             {/* Product Photos Section */}
                             <div className="form-group">
-                                <label>Product Photos {isMobile && <span style={{color: 'red'}}>*</span>}</label>
-                                {isMobile && productPhotos.length === 0 && (
+                                <label>Product Photos {isMobile && !selectedProduct && <span style={{color: 'red'}}>*</span>}</label>
+                                {selectedProduct && (
+                                    <div style={{
+                                        backgroundColor: '#e7f3ff',
+                                        border: '1px solid #4a90e2',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        marginBottom: '10px',
+                                        color: '#1a5490'
+                                    }}>
+                                        <strong>ℹ️ Note:</strong> Photo editing is not available when updating a product. The existing photos will be kept.
+                                    </div>
+                                )}
+                                {isMobile && productPhotos.length === 0 && !selectedProduct && (
                                     <div style={{
                                         backgroundColor: '#fff3cd',
                                         border: '1px solid #ffc107',
@@ -1546,6 +1771,7 @@ const FarmerDashboard = () => {
                                         <strong>⚠️ Required:</strong> You must capture at least one product photo before submitting.
                                     </div>
                                 )}
+                                {!selectedProduct && (
                                 <div className="photo-section">
                                     <button
                                         type="button"
@@ -1576,21 +1802,32 @@ const FarmerDashboard = () => {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-
-                            <div className="modal-actions">
-                                <button 
-                                    type="button" 
-                                    className="btn-secondary"
-                                    onClick={closeProductModal}
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn-primary">
-                                    {selectedProduct ? '💾 Update Product' : '+ Add Product'}
-                                </button>
+                                )}
                             </div>
                         </form>
+
+                        <div className="modal-actions">
+                            <button 
+                                type="button" 
+                                className="btn-secondary"
+                                onClick={closeProductModal}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="submit" 
+                                className="btn-primary"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const form = e.target.closest('.modal-content').querySelector('form');
+                                    if (form) {
+                                        form.requestSubmit();
+                                    }
+                                }}
+                            >
+                                {selectedProduct ? '💾 Update Product' : '+ Add Product'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
