@@ -327,6 +327,7 @@ input, select, textarea {
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
+  border: 2px solid var(--primary-dark);
   border-radius: var(--radius-full);
   background: var(--secondary-color);
   transition: var(--transition-base);
@@ -354,8 +355,9 @@ input, select, textarea {
   width: 36px;
   height: 36px;
   border-radius: var(--radius-full);
+  border: 2px solid var(--primary-dark);
   background: var(--gradient-primary);
-  color: white;
+  color: var(--primary-dark);
   display: flex;
   align-items: center;
   justify-content: center;

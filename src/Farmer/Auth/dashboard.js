@@ -884,6 +884,20 @@ const FarmerDashboard = () => {
                             </button>
                         </div>
 
+                        {/* Out of Stock Alert */}
+                        {products.filter(p => p.quantity <= 0).length > 0 && (
+                            <div className="alert-banner alert-warning">
+                                <div className="alert-icon">⚠️</div>
+                                <div className="alert-content">
+                                    <strong>Stock Alert!</strong>
+                                    <p>
+                                        You have {products.filter(p => p.quantity <= 0).length} product(s) out of stock. 
+                                        These products are not visible to buyers. Please restock them soon!
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Search and Filter Bar */}
                         <div className="filter-bar">
                             <div className="search-box">
@@ -918,7 +932,6 @@ const FarmerDashboard = () => {
                                     <option value="Legumes">Legumes</option>
                                     <option value="Vegetables">Vegetables</option>
                                     <option value="Fruits">Fruits</option>
-                                    <option value="Root Crops">Root Crops</option>
                                 </select>
                             </div>
                         </div>
@@ -948,7 +961,12 @@ const FarmerDashboard = () => {
                                 </div>
                                         <div className="products-grid">
                                     {filteredProducts.map(product => (
-                                        <div key={product.id} className="product-card">
+                                        <div key={product.id} className={`product-card ${product.quantity <= 0 ? 'out-of-stock' : ''}`}>
+                                            {product.quantity <= 0 && (
+                                                <div className="out-of-stock-banner">
+                                                    ⚠️ OUT OF STOCK
+                                                </div>
+                                            )}
                                             <div className="product-image-placeholder">
                                                 <span className="product-icon">🌾</span>
                                                 <div className="product-overlay">
@@ -975,8 +993,9 @@ const FarmerDashboard = () => {
                                                 <div className="product-stats">
                                                     <div className="stat-item">
                                                         <span className="stat-icon">📦</span>
-                                                        <span className="stat-text">
+                                                        <span className={`stat-text ${product.quantity <= 0 ? 'text-danger' : ''}`}>
                                                             {product.quantity} {product.unit}
+                                                            {product.quantity <= 0 && ' - Restock needed!'}
                                                         </span>
                                                     </div>
                                                     <div className="stat-item">

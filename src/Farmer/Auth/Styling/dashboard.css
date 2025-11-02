@@ -101,6 +101,45 @@
     }
 }
 
+/* Alert Banners */
+.alert-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    animation: slideDown 0.3s ease-out;
+}
+
+.alert-warning {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-content strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+    color: #856404;
+}
+
+.alert-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 /* Loading State */
 .dashboard-loading {
     display: flex;
@@ -932,6 +971,43 @@
     color: var(--farmer-primary-color);
     font-weight: 600;
     font-size: 0.95rem;
+}
+
+.stat-text.text-danger {
+    color: #dc3545;
+    font-weight: 700;
+}
+
+/* Out of Stock Styles */
+.product-card.out-of-stock {
+    border: 2px solid #dc3545;
+    background: #fff5f5;
+    position: relative;
+}
+
+.out-of-stock-banner {
+    position: absolute;
+    top: 10px;
+    right: -35px;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    padding: 5px 40px;
+    transform: rotate(45deg);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+    z-index: 10;
+}
+
+.product-card.out-of-stock .product-image-placeholder {
+    background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+    opacity: 0.8;
+}
+
+.product-card.out-of-stock .product-icon {
+    filter: grayscale(50%);
+    opacity: 0.6;
 }
 
 .product-quantity,
