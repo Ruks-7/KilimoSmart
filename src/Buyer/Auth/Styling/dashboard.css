@@ -1776,6 +1776,17 @@ input, select, textarea {
   transition: var(--transition-base);
 }
 
+.modal-cancel-btn:hover:not(:disabled) {
+  background: var(--secondary-color);
+  border-color: var(--text-light);
+}
+
+.modal-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+
 /* Address modal */
 .address-modal {
   max-width: 640px;
@@ -1834,44 +1845,89 @@ input, select, textarea {
   max-width: 700px;
   height: auto;
   max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .checkout-modal .modal-content {
   grid-template-columns: 1fr;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.checkout-modal .modal-header {
   padding: var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
 }
 
 .checkout-modal .modal-header h2 {
   font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.checkout-modal .modal-header .subtitle {
+  color: var(--text-light);
+  font-size: 0.9rem;
+  margin: 0;
 }
 
 .checkout-modal .modal-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-sm) 0;
+  gap: 0;
+  padding: var(--space-md);
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.checkout-modal .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.checkout-modal .modal-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.checkout-modal .modal-body::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+.checkout-modal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark);
 }
 
 .checkout-modal .detail-item {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: var(--space-md);
-  padding: 0.5rem 0;
+  gap: var(--space-sm);
+  padding: 0.75rem 0;
   border-bottom: 1px dashed var(--border-light);
 }
 
 .checkout-modal .detail-label {
   color: var(--text-light);
-  font-size: 0.8rem;
-  width: 35%;
+  font-size: 0.85rem;
+  min-width: 30%;
+  max-width: 40%;
+  flex-shrink: 0;
+  font-weight: 500;
 }
 
 .checkout-modal .detail-value {
   color: var(--text-dark);
-  font-weight: 700;
-  text-align: right;
-  width: 65%;
+  font-weight: 600;
+  text-align: left;
+  flex: 1;
+  word-break: break-word;
 }
 
 .checkout-modal .raw-response {
@@ -1880,17 +1936,23 @@ input, select, textarea {
   padding: 0.75rem;
   border-radius: 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
-  font-size: 0.85rem;
-  max-height: 220px;
+  font-size: 0.75rem;
+  max-height: 200px;
   overflow: auto;
   white-space: pre-wrap;
+  width: 100%;
+  margin-top: 0.5rem;
 }
 
 .checkout-modal .modal-actions {
   display: flex;
   gap: var(--space-sm);
   justify-content: flex-end;
-  padding-top: var(--space-md);
+  padding: var(--space-md);
+  border-top: 1px solid var(--border-light);
+  flex-shrink: 0;
+  background: white;
+  flex-wrap: wrap;
 }
 
 .modal-cancel-btn:hover {
@@ -2459,6 +2521,51 @@ input, select, textarea {
 
   .desktop-only {
     display: none !important;
+  }
+
+  .checkout-modal {
+    max-width: 95vw;
+    max-height: 90vh;
+    margin: 0.5rem;
+  }
+
+  .checkout-modal .modal-header {
+    padding: 1rem;
+  }
+
+  .checkout-modal .modal-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .checkout-modal .modal-body {
+    padding: 1rem;
+  }
+
+  .checkout-modal .detail-item {
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+  }
+
+  .checkout-modal .detail-label {
+    width: 100%;
+    font-size: 0.75rem;
+    text-align: left;
+  }
+
+  .checkout-modal .detail-value {
+    width: 100%;
+    text-align: left;
+    font-size: 0.9rem;
+  }
+
+  .checkout-modal .modal-actions {
+    padding: 1rem;
+    flex-direction: column;
+  }
+
+  .checkout-modal .modal-actions button {
+    width: 100%;
   }
 }
 

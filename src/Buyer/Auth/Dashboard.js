@@ -46,7 +46,6 @@ const BuyerDashboard = () => {
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [proceedAfterSave, setProceedAfterSave] = useState(false);
   const [lastCheckoutInfo, setLastCheckoutInfo] = useState(null);
-  const [showRawDetails, setShowRawDetails] = useState(false);
 
   // Handle window resize for filters
   useEffect(() => {
@@ -358,8 +357,6 @@ const BuyerDashboard = () => {
         itemsCount: itemsPayload.length,
         deliveryAddress
       });
-
-      setShowRawDetails(false);
 
       const mpesaResp = await fetch(`${API_CONFIG.BASE_URL || ''}/api/mpesa/stkpush`, {
         method: 'POST',
@@ -1543,6 +1540,19 @@ const BuyerDashboard = () => {
               <div className="modal-header">
                 <h2 id="checkout-modal-title">Checkout initiated</h2>
                 <p className="subtitle">An M-Pesa payment prompt was sent to your phone (if available). Below are the request details.</p>
+                {pendingOrder && (
+                  <div style={{
+                    backgroundColor: '#fff3cd',
+                    border: '1px solid #ffc107',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    marginTop: '12px',
+                    color: '#856404',
+                    fontSize: '0.9rem'
+                  }}>
+                    <strong>⚠️ Important:</strong> Your cart items will remain until payment is confirmed. Complete the M-Pesa payment to finalize your order.
+                  </div>
+                )}
               </div>
 
               <div className="modal-body">
@@ -1592,35 +1602,17 @@ const BuyerDashboard = () => {
                   <span className="detail-label">Next Steps</span>
                   <span className="detail-value">Complete the M-Pesa prompt on your phone. If you don't receive it within 60 seconds, check your network or try again. Payment updates will appear in Orders.</span>
                 </div>
-
-                {/* Raw response toggle */}
-                <div className="detail-item" style={{borderBottom: 'none', paddingTop: '0.5rem'}}>
-                  <button className="edit-address-btn" onClick={() => setShowRawDetails(s => !s)}>
-                    {showRawDetails ? 'Hide details' : 'Show raw response'}
-                  </button>
-                </div>
-
-                {pendingOrder?.checkoutRequestId && (
-                  <div className="detail-item">
-                    <span className="detail-label">CheckoutRequestID</span>
-                    <span className="detail-value">{pendingOrder.checkoutRequestId}</span>
-                  </div>
-                )}
-
-                {showRawDetails && (
-                  <div className="detail-item" style={{borderBottom: 'none'}}>
-                    <span className="detail-label">Raw Response</span>
-                    <pre className="raw-response">{JSON.stringify(stkResponse, null, 2)}</pre>
-                  </div>
-                )}
               </div>
-
+                
               <div className="modal-actions">
                 {pendingOrder ? (
                   <>
-                    <button className="modal-cancel-btn" onClick={() => { setShowCheckoutModal(false); }}>{isCheckingPayment ? 'Checking...' : 'Close'}</button>
-                    <button className="modal-add-to-cart-btn" onClick={() => { checkPaymentNow(); }}>{isCheckingPayment ? 'Checking...' : 'Check Payment Now'}</button>
-                    <button className="modal-cancel-btn" onClick={() => { cancelPendingOrder(); }}>Cancel Order</button>
+                    <button className="modal-add-to-cart-btn" onClick={() => { checkPaymentNow(); }} disabled={isCheckingPayment}>
+                      {isCheckingPayment ? 'Checking...' : 'Check Payment Now'}
+                    </button>
+                    <button className="modal-cancel-btn" onClick={() => { cancelPendingOrder(); }} disabled={isCheckingPayment}>
+                      Cancel Order
+                    </button>
                   </>
                 ) : (
                   <>
