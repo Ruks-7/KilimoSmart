@@ -18,29 +18,59 @@ router.get('/users', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 25, 200);
     const offset = (page - 1) * limit;
     const search = req.query.search ? req.query.search.trim() : null;
+    const userType = req.query.userType ? req.query.userType.trim().toLowerCase() : null;
 
     const params = [];
-    let where = '';
+    let whereConditions = [];
+    
+    // Add search condition
     if (search) {
+      whereConditions.push(`(u.email ILIKE $${params.length + 1} OR u.first_name ILIKE $${params.length + 1} OR u.last_name ILIKE $${params.length + 1})`);
       params.push(`%${search}%`);
-      params.push(`%${search}%`);
-      where = `WHERE (u.email ILIKE $1 OR u.first_name ILIKE $2 OR u.last_name ILIKE $3)`;
-      // shift params for pagination
-      // we'll rebuild params properly below
     }
-
-    // Build query with safe parameter numbering
-    if (search) {
-      const q = `SELECT u.user_id as id, u.email, u.first_name as "firstName", u.last_name as "lastName", u.user_type as "userType", u.phone_number as "phoneNumber", u.created_at as "createdAt" FROM "USER" u WHERE (u.email ILIKE $1 OR u.first_name ILIKE $1 OR u.last_name ILIKE $1) ORDER BY u.created_at DESC LIMIT $2 OFFSET $3`;
-      const countQ = `SELECT COUNT(*) as count FROM "USER" u WHERE (u.email ILIKE $1 OR u.first_name ILIKE $1 OR u.last_name ILIKE $1)`;
-      const data = await query(q, [`%${search}%`, limit, offset]);
-      const countRes = await query(countQ, [`%${search}%`]);
-      return res.status(200).json({ success: true, users: data.rows, total: parseInt(countRes.rows[0].count), page, limit });
+    
+    // Add user type filter
+    if (userType && (userType === 'farmer' || userType === 'buyer')) {
+      whereConditions.push(`u.user_type = $${params.length + 1}`);
+      params.push(userType);
     }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    const result = await query(`SELECT u.user_id as id, u.email, u.first_name as "firstName", u.last_name as "lastName", u.user_type as "userType", u.phone_number as "phoneNumber", u.created_at as "createdAt" FROM "USER" u ORDER BY u.created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]);
-    const countRes = await query('SELECT COUNT(*) as count FROM "USER"');
-    return res.status(200).json({ success: true, users: result.rows, total: parseInt(countRes.rows[0].count), page, limit });
+    // Build query
+    const selectQuery = `SELECT u.user_id as id, u.email, u.first_name as "firstName", u.last_name as "lastName", u.user_type as "userType", u.phone_number as "phoneNumber", u.created_at as "createdAt" FROM "USER" u ${whereClause} ORDER BY u.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    const countQuery = `SELECT COUNT(*) as count FROM "USER" u ${whereClause}`;
+
+    params.push(limit, offset);
+    const data = await query(selectQuery, params);
+    
+    // For count query, remove the last two params (limit and offset)
+    const countParams = params.slice(0, -2);
+    const countRes = await query(countQuery, countParams);
+    
+    // Get overall stats for the stats cards
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE user_type = 'farmer') as farmers,
+        COUNT(*) FILTER (WHERE user_type = 'buyer') as buyers
+      FROM "USER"
+    `;
+    const statsRes = await query(statsQuery);
+    const stats = {
+      total: parseInt(statsRes.rows[0].total || 0),
+      farmers: parseInt(statsRes.rows[0].farmers || 0),
+      buyers: parseInt(statsRes.rows[0].buyers || 0)
+    };
+
+    return res.status(200).json({ 
+      success: true, 
+      users: data.rows, 
+      total: parseInt(countRes.rows[0].count), 
+      page, 
+      limit,
+      stats 
+    });
   } catch (error) {
     console.error('Admin GET /users error:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch users', error: process.env.NODE_ENV === 'development' ? error.message : undefined });

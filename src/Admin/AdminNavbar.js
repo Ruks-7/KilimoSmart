@@ -48,27 +48,48 @@ const AdminNavbar = () => {
 
 	return (
 		<header className="admin-topbar">
-			<div className="brand">KilimoSmart — Admin</div>
-			<button ref={btnRef} className={`hamburger${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(prev => !prev)} aria-label="Toggle menu">
-				<span className="bar"></span>
-				<span className="bar"></span>
-				<span className="bar"></span>
-			</button>
-			<nav ref={navRef} className={`admin-nav${menuOpen ? ' show' : ''}`}>
-				<Link to="/admin" className="nav-link" onClick={() => setMenuOpen(false)}>Dashboard</Link>
-				<Link to="/admin/users" className="nav-link" onClick={() => setMenuOpen(false)}>Users</Link>
-				<Link to="/admin/transactions" className="nav-link" onClick={() => setMenuOpen(false)}>Transactions</Link>
-				<Link to="/admin/reports" className="nav-link" onClick={() => setMenuOpen(false)}>Reports</Link>
-			</nav>
-			<div className="admin-actions">
-				{userData ? (
-					<div className="admin-user">
-						<span className="user-name">{userData.first_name || userData.firstName || 'Admin'}</span>
-						<button className="btn-logout" onClick={handleLogout}>Logout</button>
-					</div>
-				) : (
-					<button className="btn-logout" onClick={() => navigate('/')}>Home</button>
-				)}
+			<div className="admin-container">
+				<div className="brand">
+					<span className="brand-icon">🌾</span>
+					<span className="brand-text">KilimoSmart</span>
+					<span className="brand-badge">Admin</span>
+				</div>
+				<button ref={btnRef} className={`hamburger${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(prev => !prev)} aria-label="Toggle menu">
+					<span className="bar"></span>
+					<span className="bar"></span>
+					<span className="bar"></span>
+				</button>
+				<nav ref={navRef} className={`admin-nav${menuOpen ? ' show' : ''}`}>
+					<Link to="/admin" className="nav-link" onClick={() => setMenuOpen(false)}>
+						<span className="nav-icon">📊</span>
+						<span className="nav-text">Dashboard</span>
+					</Link>
+					<Link to="/admin/users" className="nav-link" onClick={() => setMenuOpen(false)}>
+						<span className="nav-icon">👥</span>
+						<span className="nav-text">Users</span>
+					</Link>
+					<Link to="/admin/transactions" className="nav-link" onClick={() => setMenuOpen(false)}>
+						<span className="nav-icon">💳</span>
+						<span className="nav-text">Transactions</span>
+					</Link>
+					<Link to="/admin/reports" className="nav-link" onClick={() => setMenuOpen(false)}>
+						<span className="nav-icon">📋</span>
+						<span className="nav-text">Reports</span>
+					</Link>
+				</nav>
+				<div className="admin-actions">
+					{userData ? (
+						<div className="admin-user">
+							<span className="user-avatar">👤</span>
+							<span className="user-name">{userData.first_name || userData.firstName || 'Admin'}</span>
+							<button className="btn-logout" onClick={handleLogout}>
+								<span>Logout</span>
+							</button>
+						</div>
+					) : (
+						<button className="btn-logout" onClick={() => navigate('/')}>Home</button>
+					)}
+				</div>
 			</div>
 		</header>
 	);
