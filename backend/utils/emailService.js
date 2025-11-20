@@ -271,7 +271,330 @@ async function sendWelcomeEmail(email, firstName) {
   }
 }
 
+/**
+ * Send purchase receipt email to buyer
+ * @param {object} receiptData
+ * @param {string} receiptData.email 
+ * @param {string} receiptData.buyerName
+ * @param {string} receiptData.orderId
+ * @param {string} receiptData.orderDate
+ * @param {array} receiptData.items 
+ * @param {number} receiptData.totalAmount 
+ * @param {string} receiptData.deliveryAddress 
+ * @param {string} receiptData.paymentMethod 
+ * @param {string} receiptData.farmerName 
+ * @returns {Promise} - SendGrid response
+ */
+async function sendPurchaseReceipt(receiptData) {
+  const {
+    email,
+    buyerName,
+    orderId,
+    orderDate,
+    items,
+    totalAmount,
+    deliveryAddress,
+    paymentMethod,
+    farmerName,
+  } = receiptData;
+
+  // Format order date
+  const formattedDate = new Date(orderDate).toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  // Generate items HTML
+  const itemsHtml = items.map((item, index) => `
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px 8px;">${index + 1}</td>
+      <td style="padding: 12px 8px;">${item.productName}</td>
+      <td style="padding: 12px 8px; text-align: center;">${item.quantity} ${item.unit || 'units'}</td>
+      <td style="padding: 12px 8px; text-align: right;">KSh ${parseFloat(item.pricePerUnit).toFixed(2)}</td>
+      <td style="padding: 12px 8px; text-align: right; font-weight: 600;">KSh ${parseFloat(item.subtotal).toFixed(2)}</td>
+    </tr>
+  `).join('');
+
+  const msg = {
+    to: email,
+    from: {
+      email: process.env.FROM_EMAIL,
+      name: process.env.FROM_NAME || 'KilimoSmart',
+    },
+    subject: `Your KilimoSmart Order Receipt - Order #${orderId}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+          }
+          .container {
+            max-width: 650px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            background: linear-gradient(135deg, #004a2f 0%, #006b44 50%, #228b22 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+          }
+          .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+          }
+          .header .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+          }
+          .content {
+            padding: 30px;
+          }
+          .receipt-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #004a2f;
+          }
+          .receipt-header h2 {
+            color: #004a2f;
+            margin: 0 0 10px 0;
+          }
+          .order-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+          }
+          .order-info-item {
+            margin-bottom: 10px;
+          }
+          .order-info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 4px;
+          }
+          .order-info-value {
+            color: #333;
+            font-size: 15px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #eee;
+          }
+          thead {
+            background: linear-gradient(135deg, #004a2f 0%, #006b44 100%);
+            color: white;
+          }
+          th {
+            padding: 14px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+          }
+          td {
+            padding: 12px 8px;
+            font-size: 14px;
+          }
+          .total-row {
+            background: #f0f8f0;
+            border-top: 2px solid #004a2f;
+          }
+          .total-row td {
+            font-weight: 700;
+            font-size: 18px;
+            color: #004a2f;
+            padding: 16px 8px;
+          }
+          .success-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+          }
+          .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #004a2f;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+          .info-box p {
+            margin: 5px 0;
+            font-size: 14px;
+          }
+          .footer {
+            background: #f8f9fa;
+            padding: 25px;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            border-top: 1px solid #eee;
+          }
+          .footer p {
+            margin: 8px 0;
+          }
+          @media (max-width: 600px) {
+            .order-info {
+              grid-template-columns: 1fr;
+            }
+            table {
+              font-size: 12px;
+            }
+            th, td {
+              padding: 8px 4px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="icon">🧾</div>
+            <h1>Purchase Receipt</h1>
+            <p style="margin: 0; opacity: 0.9;">Thank you for your order!</p>
+          </div>
+          
+          <div class="content">
+            <div class="receipt-header">
+              <span class="success-badge">✓ PAYMENT CONFIRMED</span>
+              <h2>Order #${orderId}</h2>
+              <p style="color: #666; margin: 5px 0;">Date: ${formattedDate}</p>
+            </div>
+
+            <div class="order-info">
+              <div class="order-info-item">
+                <div class="order-info-label">Buyer Name</div>
+                <div class="order-info-value">${buyerName}</div>
+              </div>
+              <div class="order-info-item">
+                <div class="order-info-label">Farmer</div>
+                <div class="order-info-value">${farmerName}</div>
+              </div>
+              <div class="order-info-item">
+                <div class="order-info-label">Payment Method</div>
+                <div class="order-info-value">${paymentMethod}</div>
+              </div>
+              <div class="order-info-item">
+                <div class="order-info-label">Delivery Address</div>
+                <div class="order-info-value">${deliveryAddress}</div>
+              </div>
+            </div>
+
+            <h3 style="color: #004a2f; margin-bottom: 15px;">Order Items</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50px;">#</th>
+                  <th>Product</th>
+                  <th style="text-align: center; width: 100px;">Quantity</th>
+                  <th style="text-align: right; width: 100px;">Unit Price</th>
+                  <th style="text-align: right; width: 100px;">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+                <tr class="total-row">
+                  <td colspan="4" style="text-align: right;">TOTAL</td>
+                  <td style="text-align: right;">KSh ${parseFloat(totalAmount).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="info-box">
+              <p><strong>📦 What's Next?</strong></p>
+              <p>• Your order has been confirmed and the farmer has been notified</p>
+              <p>• You will receive updates about your order status</p>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+              <p style="color: #666;">Need help with your order?</p>
+              <p style="margin: 10px 0;">
+                <a href="mailto:support@kilimosmart.com" style="color: #004a2f; text-decoration: none; font-weight: 600;">
+                  Contact Support
+                </a>
+              </p>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p><strong>KilimoSmart</strong> - Connecting Farmers & Buyers</p>
+            <p>Email: support@kilimosmart.com | Phone: +254 XXX XXX XXX</p>
+            <p style="margin-top: 15px; font-size: 11px; color: #999;">
+              This is an automated receipt. Please keep it for your records.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+      KilimoSmart - Purchase Receipt
+      
+      Order #${orderId}
+      Date: ${formattedDate}
+      Status: PAYMENT CONFIRMED
+      
+      Buyer: ${buyerName}
+      Farmer: ${farmerName}
+      Payment Method: ${paymentMethod}
+      Delivery Address: ${deliveryAddress}
+      
+      ORDER ITEMS:
+      ${items.map((item, i) => `${i + 1}. ${item.productName} - ${item.quantity} ${item.unit || 'units'} @ KSh ${item.pricePerUnit} = KSh ${item.subtotal}`).join('\n')}
+      
+      TOTAL: KSh ${totalAmount}
+      
+      Thank you for your order!
+      
+      KilimoSmart - Connecting Farmers & Buyers
+      support@kilimosmart.com
+    `
+  };
+
+  try {
+    const response = await sgMail.send(msg);
+    console.log('✅ Purchase receipt sent to:', email);
+    return response;
+  } catch (error) {
+    console.error('❌ Receipt email error:', error);
+    if (error.response) {
+      console.error('SendGrid error details:', error.response.body);
+    }
+    throw new Error('Failed to send receipt email');
+  }
+}
+
 module.exports = {
   sendOTPEmail,
   sendWelcomeEmail,
+  sendPurchaseReceipt,
 };

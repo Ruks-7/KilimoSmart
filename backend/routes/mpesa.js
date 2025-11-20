@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const { query } = require('../config/database');
+const { sendPurchaseReceipt } = require('../utils/emailService');
 
 require('dotenv').config();
 
@@ -222,6 +223,76 @@ router.post('/callback', async (req, res) => {
           await query(`UPDATE ORDER_RESERVATION SET released = TRUE WHERE order_id = $1`, [payment.order_id]);
         } catch (e) {
           console.error('Failed to mark reservation released:', e.message || e);
+        }
+
+        // Send receipt email to buyer
+        try {
+          // Fetch complete order details with buyer and farmer info
+          const orderDetailsQuery = `
+            SELECT 
+              o.order_id,
+              o.order_date,
+              o.total_amount,
+              o.delivery_address,
+              u_buyer.email as buyer_email,
+              u_buyer.first_name as buyer_first_name,
+              u_buyer.last_name as buyer_last_name,
+              u_farmer.first_name as farmer_first_name,
+              u_farmer.last_name as farmer_last_name
+            FROM "ORDER" o
+            LEFT JOIN BUYER b ON o.buyer_id = b.buyer_id
+            LEFT JOIN USERS u_buyer ON b.user_id = u_buyer.user_id
+            LEFT JOIN FARMER f ON o.farmer_id = f.farmer_id
+            LEFT JOIN USERS u_farmer ON f.user_id = u_farmer.user_id
+            WHERE o.order_id = $1
+          `;
+          const orderDetails = await query(orderDetailsQuery, [payment.order_id]);
+
+          if (orderDetails.rows.length > 0) {
+            const order = orderDetails.rows[0];
+
+            // Fetch order items
+            const itemsQuery = `
+              SELECT 
+                oi.quantity_ordered as quantity,
+                oi.price_per_unit,
+                oi.total_price as subtotal,
+                p.product_name,
+                p.unit
+              FROM ORDER_ITEMS oi
+              JOIN PRODUCT p ON oi.product_id = p.product_id
+              WHERE oi.order_id = $1
+            `;
+            const itemsResult = await query(itemsQuery, [payment.order_id]);
+
+            // Prepare receipt data
+            const receiptData = {
+              email: order.buyer_email,
+              buyerName: `${order.buyer_first_name} ${order.buyer_last_name}`,
+              orderId: order.order_id,
+              orderDate: order.order_date,
+              items: itemsResult.rows.map(item => ({
+                productName: item.product_name,
+                quantity: item.quantity,
+                unit: item.unit,
+                pricePerUnit: item.price_per_unit,
+                subtotal: item.subtotal
+              })),
+              totalAmount: order.total_amount,
+              deliveryAddress: order.delivery_address,
+              paymentMethod: 'M-Pesa',
+              farmerName: `${order.farmer_first_name} ${order.farmer_last_name}`
+            };
+
+            // Send receipt email
+            await sendPurchaseReceipt(receiptData);
+            console.log('✅ Receipt email sent for order:', payment.order_id);
+          } else {
+            console.warn('⚠️ Order details not found for receipt email:', payment.order_id);
+          }
+        } catch (emailError) {
+          // Log error but don't fail the payment processing
+          console.error('❌ Failed to send receipt email:', emailError.message || emailError);
         }
       } else {
         console.warn('No matching payment for CheckoutRequestID:', checkoutRequestId);
