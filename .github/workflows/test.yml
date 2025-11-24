@@ -47,11 +47,8 @@ jobs:
 
       # Run all tests with JUnit reporter so test-reporter can find results
       - name: Run tests (generate junit)
-        env:
-          JEST_JUNIT_OUTPUT: backend/coverage/junit.xml
         run: |
           cd backend
-          mkdir -p coverage
           npx jest --ci --reporters=default --reporters=jest-junit --coverage --coverageDirectory=coverage
       
       # Upload coverage reports
@@ -69,6 +66,6 @@ jobs:
         if: success() || failure()
         with:
           name: Jest Tests
-          path: backend/coverage/junit.xml
+          path: backend/junit.xml
           reporter: jest-junit
           fail-on-error: false
