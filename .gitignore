@@ -34,3 +34,6 @@ src/Database Schema
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Github Actions
+GITHUB_ACTIONS.md

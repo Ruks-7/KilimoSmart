@@ -1,0 +1,71 @@
+name: Run Tests
+
+# Trigger the workflow on push and pull requests
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+# Set environment variables
+env:
+  NODE_ENV: test
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x]
+    
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      # Setup Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      # Install backend dependencies
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+      
+      # Run unit tests
+      - name: Run unit tests
+        run: |
+          cd backend
+          npm run test:unit
+      
+      # Run integration tests
+      - name: Run integration tests
+        run: |
+          cd backend
+          npm run test:integration
+      
+      # Upload coverage reports
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./backend/coverage
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+      
+      # Report test results
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Jest Tests
+          path: backend/coverage/junit.xml
+          reporter: jest-junit
+          fail-on-error: false
