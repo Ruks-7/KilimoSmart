@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { RoleProvider } from './contexts/RoleContext';
 import LandingPage from './landingPage';
 import SignUp from './Buyer/Auth/signUp';
 import BuyerLogin from './Buyer/Auth/login';
@@ -23,7 +24,8 @@ import './Admin/Styling/admin.css';
 
 function App() {
   return (
-    <Routes>
+    <RoleProvider>
+      <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/login" element={<BuyerLogin />} />
@@ -36,7 +38,8 @@ function App() {
       <Route path="/admin/users" element={<AdminUsers />} />
       <Route path="/admin/transactions" element={<AdminTransactions />} />
       <Route path="/admin/reports" element={<AdminReports />} />
-    </Routes>
+      </Routes>
+    </RoleProvider>
   );
 }
 

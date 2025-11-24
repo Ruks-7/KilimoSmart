@@ -51,9 +51,12 @@ const authenticateToken = (req, res, next) => {
       req.user = {
         userId: decoded.userId || decoded.user_id,
         email: decoded.email,
-        role: decoded.role || decoded.userType, // Support both 'role' and 'userType'
+        role: decoded.active_role || decoded.role || decoded.userType, // Support active_role for dual RBAC
+        userType: decoded.userType,
+        activeRole: decoded.active_role,
         farmerId: decoded.farmerId || decoded.farmer_id,
         buyerId: decoded.buyerId || decoded.buyer_id,
+        roles: decoded.roles || [], // Array of available roles for dual RBAC
       };
 
       console.log('👤 req.user set to:', req.user);
@@ -71,19 +74,29 @@ const authenticateToken = (req, res, next) => {
 
 /**
  * Middleware to check if user has farmer role (or admin for viewing purposes)
+ * Updated to support dual RBAC - checks active role or available roles
  */
 const requireFarmer = (req, res, next) => {
   console.log('🚜 Checking farmer role:', {
     userRole: req.user.role,
+    activeRole: req.user.activeRole,
     userId: req.user.userId,
-    farmerId: req.user.farmerId
+    farmerId: req.user.farmerId,
+    availableRoles: req.user.roles
   });
   
-  if (req.user.role !== 'farmer' && req.user.role !== 'admin') {
-    console.error('❌ Role check failed:', req.user.role, '!== farmer/admin');
+  // Check if user has farmer role (either as active role or in available roles)
+  const hasFarmerRole = req.user.role === 'farmer' || 
+                        req.user.activeRole === 'farmer' ||
+                        req.user.roles.includes('farmer') ||
+                        req.user.farmerId;
+  
+  if (!hasFarmerRole && req.user.role !== 'admin') {
+    console.error('❌ Farmer role check failed');
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Farmer or Admin role required.',
+      message: 'Access denied. Farmer role required. Please switch to farmer role or create a farmer profile.',
+      requiresRole: 'farmer',
     });
   }
   
@@ -93,14 +106,33 @@ const requireFarmer = (req, res, next) => {
 
 /**
  * Middleware to check if user has buyer role
+ * Updated to support dual RBAC - checks active role or available roles
  */
 const requireBuyer = (req, res, next) => {
-  if (req.user.role !== 'buyer') {
+  console.log('🛒 Checking buyer role:', {
+    userRole: req.user.role,
+    activeRole: req.user.activeRole,
+    userId: req.user.userId,
+    buyerId: req.user.buyerId,
+    availableRoles: req.user.roles
+  });
+  
+  // Check if user has buyer role (either as active role or in available roles)
+  const hasBuyerRole = req.user.role === 'buyer' || 
+                       req.user.activeRole === 'buyer' ||
+                       req.user.roles.includes('buyer') ||
+                       req.user.buyerId;
+  
+  if (!hasBuyerRole) {
+    console.error('❌ Buyer role check failed');
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Buyer role required.',
+      message: 'Access denied. Buyer role required. Please switch to buyer role or create a buyer profile.',
+      requiresRole: 'buyer',
     });
   }
+  
+  console.log('✅ Buyer role verified');
   next();
 };
 

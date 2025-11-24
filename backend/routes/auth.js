@@ -227,12 +227,25 @@ router.post('/verify-otp', async (req, res) => {
         [user.user_id]
       );
 
-      // Generate JWT token
+      // Get user roles for dual RBAC support
+      const rolesResult = await query(
+        `SELECT role_type FROM USER_ROLES 
+         WHERE user_id = $1 AND is_active = TRUE`,
+        [user.user_id]
+      );
+      const userRoles = rolesResult.rows.map(r => r.role_type);
+
+      // Determine active role (use active_role from USER table or default to user_type)
+      const activeRole = user.active_role || user.user_type;
+
+      // Generate JWT token with dual RBAC support
       const token = jwt.sign(
         { 
           user_id: user.user_id, 
           email: user.email, 
           userType: user.user_type,
+          active_role: activeRole,
+          roles: userRoles,
           farmer_id: user.farmer_id,
           buyer_id: user.buyer_id,
         },

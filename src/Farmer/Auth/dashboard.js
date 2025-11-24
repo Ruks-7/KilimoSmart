@@ -4,6 +4,7 @@ import CameraCapture from '../../components/CameraCapture';
 import { API_CONFIG } from '../../config/api';
 import { useLocation } from '../../hooks/useLocation';
 import Messages from './Messages';
+import RoleSwitcher from '../../components/RoleSwitcher';
 import './Styling/auth.css';
 import './Styling/dashboard.css';
 
@@ -674,6 +675,10 @@ const FarmerDashboard = () => {
                 <div className="header-left">
                     <h1 className="dashboard-title">🌾 KilimoSmart</h1>
                     <p className="dashboard-subtitle">Farmer Dashboard</p>
+                </div>
+                <div className="header-center">
+                    {/* Role Switcher */}
+                    <RoleSwitcher />
                 </div>
                 <div className="header-right">
                     <div className="farmer-profile">

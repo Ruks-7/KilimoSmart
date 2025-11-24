@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Styling/dashboard.css';
 import API_CONFIG from '../../config/api';
 import ContactFarmerButton from '../../components/ContactFarmerButton';
 import Messages from './Messages';
 import ReviewModal from '../../components/ReviewModal';
-import ReviewsList from '../../components/ReviewsList';
+import RoleSwitcher from '../../components/RoleSwitcher';
 
 const BuyerDashboard = () => {
   const navigate = useNavigate();
@@ -55,11 +55,6 @@ const BuyerDashboard = () => {
   const [selectedOrderForReview, setSelectedOrderForReview] = useState(null);
   const [reviewableOrders, setReviewableOrders] = useState([]);
 
-  // Helper function to get auth token from either storage
-  const getAuthToken = () => {
-    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-  };
-
   // Handle window resize for filters
   useEffect(() => {
     const handleResize = () => {
@@ -89,6 +84,34 @@ const BuyerDashboard = () => {
     }
   }, [cart]);
 
+  // Define fetchReviewableOrders early to avoid use-before-define ESLint warning
+  const fetchReviewableOrders = useCallback(async () => {
+    if (!user?.buyer_id) return;
+    
+    try {
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      const response = await fetch(
+        API_CONFIG.ENDPOINTS.REVIEWS.GET_REVIEWABLE_ORDERS(user.buyer_id),
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reviewable orders');
+      }
+
+      const data = await response.json();
+      setReviewableOrders(data.orders || []);
+    } catch (err) {
+      console.error('Fetch reviewable orders error:', err);
+    }
+  }, [user?.buyer_id]);
+
   // Check if user is logged in and fetch user data
   useEffect(() => {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
@@ -112,7 +135,7 @@ const BuyerDashboard = () => {
     } else if (activeTab === 'messages') {
       fetchUnreadMessagesCount();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchReviewableOrders]);
 
   // Fetch unread messages count on mount and periodically
   useEffect(() => {
@@ -216,33 +239,6 @@ const BuyerDashboard = () => {
       console.error('Fetch orders error:', err);
     } finally {
       setIsLoadingOrders(false);
-    }
-  };
-
-  const fetchReviewableOrders = async () => {
-    if (!user?.buyer_id) return;
-    
-    try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(
-        API_CONFIG.ENDPOINTS.REVIEWS.GET_REVIEWABLE_ORDERS(user.buyer_id),
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch reviewable orders');
-      }
-
-      const data = await response.json();
-      setReviewableOrders(data.orders || []);
-    } catch (err) {
-      console.error('Fetch reviewable orders error:', err);
     }
   };
 
@@ -746,6 +742,9 @@ const BuyerDashboard = () => {
           </div>
           
           <div className="header-center">
+            {/* Role Switcher */}
+            <RoleSwitcher />
+            
             <div className="quick-stats">
               <div className="stat-item" onClick={() => setActiveTab('browse')} title="Available Products">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -12,6 +12,7 @@ const mpesaRoutes = require('./routes/mpesa');
 const adminRoutes = require('./routes/admin');
 const messageRoutes = require('./routes/messages');
 const reviewRoutes = require('./routes/reviews');
+const rolesRoutes = require('./routes/roles');
 const { startReservationCleaner } = require('./utils/reservationCleaner');
 
 // Initialize Express app
@@ -80,6 +81,7 @@ app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/roles', rolesRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

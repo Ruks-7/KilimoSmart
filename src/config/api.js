@@ -71,6 +71,15 @@ const API_ENDPOINTS = {
     ADD_RESPONSE: (reviewId) => `${API_BASE_URL}/api/reviews/${reviewId}/response`,
     MARK_HELPFUL: (reviewId) => `${API_BASE_URL}/api/reviews/${reviewId}/helpful`,
   },
+
+  // Roles endpoints (Dual RBAC)
+  ROLES: {
+    GET_AVAILABLE: `${API_BASE_URL}/api/roles/available`,
+    GET_ACTIVE: `${API_BASE_URL}/api/roles/active`,
+    SWITCH_ROLE: `${API_BASE_URL}/api/roles/switch`,
+    ADD_ROLE: `${API_BASE_URL}/api/roles/add`,
+    GET_PROFILE: `${API_BASE_URL}/api/roles/profile`,
+  },
 };
 
 // Helper function to get headers with auth token
