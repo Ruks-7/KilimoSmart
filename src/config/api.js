@@ -59,6 +59,18 @@ const API_ENDPOINTS = {
     STATS: `${API_BASE_URL}/api/admin/stats`,
     SALES_OVER_TIME: `${API_BASE_URL}/api/admin/sales-over-time`,
   },
+  
+  // Reviews endpoints
+  REVIEWS: {
+    CREATE: `${API_BASE_URL}/api/reviews`,
+    GET_FARMER_REVIEWS: (farmerId) => `${API_BASE_URL}/api/reviews/farmer/${farmerId}`,
+    GET_BUYER_REVIEWS: (buyerId) => `${API_BASE_URL}/api/reviews/buyer/${buyerId}`,
+    GET_REVIEWABLE_ORDERS: (buyerId) => `${API_BASE_URL}/api/reviews/reviewable-orders/${buyerId}`,
+    UPDATE: (reviewId) => `${API_BASE_URL}/api/reviews/${reviewId}`,
+    DELETE: (reviewId) => `${API_BASE_URL}/api/reviews/${reviewId}`,
+    ADD_RESPONSE: (reviewId) => `${API_BASE_URL}/api/reviews/${reviewId}/response`,
+    MARK_HELPFUL: (reviewId) => `${API_BASE_URL}/api/reviews/${reviewId}/helpful`,
+  },
 };
 
 // Helper function to get headers with auth token

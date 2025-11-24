@@ -4,6 +4,8 @@ import './Styling/dashboard.css';
 import API_CONFIG from '../../config/api';
 import ContactFarmerButton from '../../components/ContactFarmerButton';
 import Messages from './Messages';
+import ReviewModal from '../../components/ReviewModal';
+import ReviewsList from '../../components/ReviewsList';
 
 const BuyerDashboard = () => {
   const navigate = useNavigate();
@@ -49,6 +51,14 @@ const BuyerDashboard = () => {
   const [proceedAfterSave, setProceedAfterSave] = useState(false);
   const [lastCheckoutInfo, setLastCheckoutInfo] = useState(null);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedOrderForReview, setSelectedOrderForReview] = useState(null);
+  const [reviewableOrders, setReviewableOrders] = useState([]);
+
+  // Helper function to get auth token from either storage
+  const getAuthToken = () => {
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  };
 
   // Handle window resize for filters
   useEffect(() => {
@@ -81,17 +91,9 @@ const BuyerDashboard = () => {
 
   // Check if user is logged in and fetch user data
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
       navigate('/login');
-      return;
-    }
-
-    // Check user role - redirect if not buyer
-    const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType');
-    if (userType && userType.toLowerCase() === 'farmer') {
-      showNotification('Access denied. Redirecting to farmer dashboard...', 'error');
-      navigate('/farmer/dashboard');
       return;
     }
 
@@ -105,6 +107,8 @@ const BuyerDashboard = () => {
       fetchProducts();
     } else if (activeTab === 'orders') {
       fetchOrders();
+    } else if (activeTab === 'reviews') {
+      fetchReviewableOrders();
     } else if (activeTab === 'messages') {
       fetchUnreadMessagesCount();
     }
@@ -150,7 +154,7 @@ const BuyerDashboard = () => {
   const fetchUserProfile = async () => {
     setIsLoadingProfile(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       const response = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.PROFILE}`, {
         method: 'GET',
         headers: {
@@ -212,6 +216,69 @@ const BuyerDashboard = () => {
       console.error('Fetch orders error:', err);
     } finally {
       setIsLoadingOrders(false);
+    }
+  };
+
+  const fetchReviewableOrders = async () => {
+    if (!user?.buyer_id) return;
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(
+        API_CONFIG.ENDPOINTS.REVIEWS.GET_REVIEWABLE_ORDERS(user.buyer_id),
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch reviewable orders');
+      }
+
+      const data = await response.json();
+      setReviewableOrders(data.orders || []);
+    } catch (err) {
+      console.error('Fetch reviewable orders error:', err);
+    }
+  };
+
+  const handleReviewOrder = (order) => {
+    setSelectedOrderForReview(order);
+    setShowReviewModal(true);
+  };
+
+  const handleReviewSubmit = async (reviewData) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(API_CONFIG.ENDPOINTS.REVIEWS.CREATE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(reviewData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit review');
+      }
+
+      showNotification('Review submitted successfully!', 'success');
+      
+      // Refresh reviewable orders
+      await fetchReviewableOrders();
+      
+      setShowReviewModal(false);
+      setSelectedOrderForReview(null);
+    } catch (err) {
+      console.error('Submit review error:', err);
+      showNotification(err.message || 'Failed to submit review', 'error');
+      throw err;
     }
   };
 
@@ -800,6 +867,19 @@ const BuyerDashboard = () => {
               {activeTab === 'orders' && <div className="active-indicator"></div>}
             </button>
             <button
+              className={`nav-item ${activeTab === 'reviews' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('reviews');
+                setIsMobileMenuOpen(false);
+              }}
+            >
+              <svg className="nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span>Reviews</span>
+              {activeTab === 'reviews' && <div className="active-indicator"></div>}
+            </button>
+            <button
               className={`nav-item ${activeTab === 'cart' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('cart');
@@ -1195,6 +1275,94 @@ const BuyerDashboard = () => {
                             ))}
                           </ul>
                         </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Reviews Tab */}
+          {activeTab === 'reviews' && (
+            <div className="tab-content reviews-tab">
+              <div className="tab-header">
+                <h2>⭐ Reviews & Ratings</h2>
+                <p className="subtitle">Share your experience and help other buyers</p>
+              </div>
+
+              {reviewableOrders.length === 0 ? (
+                <div className="placeholder-content">
+                  <div className="no-reviews-content">
+                    <span className="no-reviews-icon">⭐</span>
+                    <h3>No orders to review</h3>
+                    <p>Complete your orders to leave reviews for farmers</p>
+                    <button 
+                      className="browse-btn"
+                      onClick={() => setActiveTab('orders')}
+                    >
+                      View Orders 📦
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="reviewable-orders-list">
+                  {reviewableOrders.map((order) => (
+                    <div key={order.orderId} className="reviewable-order-card">
+                      <div className="order-header">
+                        <div>
+                          <h3>Order #{order.orderId}</h3>
+                          <p className="order-date">
+                            {new Date(order.orderDate).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                        <span className={`order-status status-${order.status}`}>
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div className="farmer-info-card">
+                        <div className="farmer-avatar">
+                          {order.farmerName?.charAt(0) || 'F'}
+                        </div>
+                        <div className="farmer-details">
+                          <h4>{order.farmerName}</h4>
+                          {order.farmerRating > 0 && (
+                            <div className="farmer-rating-display">
+                              <span className="rating-stars">
+                                {'★'.repeat(Math.floor(order.farmerRating))}
+                                {'☆'.repeat(5 - Math.floor(order.farmerRating))}
+                              </span>
+                              <span className="rating-value">{order.farmerRating.toFixed(1)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="order-amount">
+                        <strong>Total:</strong> KES {parseFloat(order.totalAmount).toFixed(2)}
+                      </div>
+
+                      {order.hasReview ? (
+                        <div className="review-status">
+                          <span className="reviewed-badge">✓ Reviewed</span>
+                          {order.reviewRating && (
+                            <span className="your-rating">
+                              Your rating: {order.reviewRating.toFixed(1)} ★
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <button 
+                          className="write-review-btn"
+                          onClick={() => handleReviewOrder(order)}
+                        >
+                          ✍️ Write a Review
+                        </button>
                       )}
                     </div>
                   ))}
@@ -1712,6 +1880,17 @@ const BuyerDashboard = () => {
         </div>
       )}
 
+      {/* Review Modal */}
+      {showReviewModal && selectedOrderForReview && (
+        <ReviewModal
+          order={selectedOrderForReview}
+          onClose={() => {
+            setShowReviewModal(false);
+            setSelectedOrderForReview(null);
+          }}
+          onSubmit={handleReviewSubmit}
+        />
+      )}
     </div>
   );
 };

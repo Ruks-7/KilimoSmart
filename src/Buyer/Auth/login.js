@@ -170,10 +170,10 @@ const [formData, setFormData] = useState({
       const storage = rememberMe ? localStorage : sessionStorage;
       storage.setItem('authToken', response.data.token);
       storage.setItem('userData', JSON.stringify(response.data.user));
-      storage.setItem('userType', response.data.user.userType || 'farmer');
+      storage.setItem('userType', response.data.user.userType || 'buyer');
       
       console.log('✅ Token stored in:', rememberMe ? 'localStorage' : 'sessionStorage');
-      console.log('✅ Navigating to /farmer/dashboard...');
+      console.log('✅ Navigating to /buyer-dashboard...');
       
       // Show success message briefly before navigation
       alert('Login successful! Redirecting to dashboard...');

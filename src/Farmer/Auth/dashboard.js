@@ -104,15 +104,6 @@ const FarmerDashboard = () => {
                 return;
             }
 
-            // Check user role - redirect if not farmer
-            const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType');
-            if (userType && userType.toLowerCase() === 'buyer') {
-                console.log('🚫 Access denied: Buyer trying to access farmer dashboard');
-                showNotificationMessage('Access denied. Redirecting to buyer dashboard...', 'error');
-                navigate('/buyer/dashboard');
-                return;
-            }
-
             console.log('🔑 Token found:', token ? 'Yes' : 'No');
 
             const headers = {
