@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="6" failures="0" errors="0" time="5.185">
+  <testsuite name="Health Tests" errors="0" failures="0" skipped="0" timestamp="2025-11-24T13:05:53" time="2.959" tests="1">
+    <testcase classname="Health Tests should return health status" name="Health Tests should return health status" time="0.04">
+    </testcase>
+  </testsuite>
+  <testsuite name="Auth Tests" errors="0" failures="0" skipped="0" timestamp="2025-11-24T13:05:53" time="3.242" tests="1">
+    <testcase classname="Auth Tests should validate JWT token" name="Auth Tests should validate JWT token" time="0.05">
+    </testcase>
+  </testsuite>
+  <testsuite name="Core Tests" errors="0" failures="0" skipped="0" timestamp="2025-11-24T13:05:56" time="0.371" tests="1">
+    <testcase classname="Core Tests app basics work" name="Core Tests app basics work" time="0.007">
+    </testcase>
+  </testsuite>
+  <testsuite name="Error Tests" errors="0" failures="0" skipped="0" timestamp="2025-11-24T13:05:56" time="0.333" tests="1">
+    <testcase classname="Error Tests should set correct status code" name="Error Tests should set correct status code" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="OTP Tests" errors="0" failures="0" skipped="0" timestamp="2025-11-24T13:05:56" time="0.295" tests="1">
+    <testcase classname="OTP Tests should generate valid OTP" name="OTP Tests should generate valid OTP" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="API Tests" errors="0" failures="0" skipped="0" timestamp="2025-11-24T13:05:53" time="4.178" tests="1">
+    <testcase classname="API Tests health endpoint returns OK" name="API Tests health endpoint returns OK" time="0.07">
+    </testcase>
+  </testsuite>
+</testsuites>
