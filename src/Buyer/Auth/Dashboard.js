@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Styling/dashboard.css';
 import API_CONFIG from '../../config/api';
+import ContactFarmerButton from '../../components/ContactFarmerButton';
+import Messages from './Messages';
 
 const BuyerDashboard = () => {
   const navigate = useNavigate();
@@ -46,6 +48,7 @@ const BuyerDashboard = () => {
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [proceedAfterSave, setProceedAfterSave] = useState(false);
   const [lastCheckoutInfo, setLastCheckoutInfo] = useState(null);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   // Handle window resize for filters
   useEffect(() => {
@@ -84,6 +87,14 @@ const BuyerDashboard = () => {
       return;
     }
 
+    // Check user role - redirect if not buyer
+    const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType');
+    if (userType && userType.toLowerCase() === 'farmer') {
+      showNotification('Access denied. Redirecting to farmer dashboard...', 'error');
+      navigate('/farmer/dashboard');
+      return;
+    }
+
     // Fetch user profile from backend
     fetchUserProfile();
   }, [navigate]);
@@ -94,8 +105,17 @@ const BuyerDashboard = () => {
       fetchProducts();
     } else if (activeTab === 'orders') {
       fetchOrders();
+    } else if (activeTab === 'messages') {
+      fetchUnreadMessagesCount();
     }
   }, [activeTab]);
+
+  // Fetch unread messages count on mount and periodically
+  useEffect(() => {
+    fetchUnreadMessagesCount();
+    const interval = setInterval(fetchUnreadMessagesCount, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -195,6 +215,26 @@ const BuyerDashboard = () => {
     }
   };
 
+  const fetchUnreadMessagesCount = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/messages/messages/unread-count`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadMessagesCount(data.unreadCount || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch unread messages count:', err);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userId');
@@ -240,6 +280,16 @@ const BuyerDashboard = () => {
     setCart(cart.map(item =>
       item.id === productId ? { ...item, quantity: newQuantity } : item
     ));
+  };
+
+  // Handle conversation creation - switch to messages tab
+  const handleConversationCreated = (conversationId) => {
+    showNotification('Conversation started! Switching to messages...', 'success');
+    fetchUnreadMessagesCount(); // Refresh unread count
+    setTimeout(() => {
+      setActiveTab('messages');
+      // You can store conversationId in state to auto-select it in Messages component
+    }, 1000);
   };
 
   // Proceed to checkout: create order and trigger M-Pesa STK Push
@@ -766,6 +816,20 @@ const BuyerDashboard = () => {
               {activeTab === 'cart' && <div className="active-indicator"></div>}
             </button>
             <button
+              className={`nav-item ${activeTab === 'messages' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('messages');
+                setIsMobileMenuOpen(false);
+              }}
+            >
+              <svg className="nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>Messages</span>
+              {unreadMessagesCount > 0 && <span className="nav-badge">{unreadMessagesCount}</span>}
+              {activeTab === 'messages' && <div className="active-indicator"></div>}
+            </button>
+            <button
               className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
               onClick={() => {
                 setActiveTab('profile');
@@ -1030,6 +1094,12 @@ const BuyerDashboard = () => {
                           >
                             View Details
                           </button>
+                          <ContactFarmerButton
+                            farmerId={product.farmerId}
+                            farmerName={product.farmerName}
+                            productName={product.name}
+                            onConversationCreated={handleConversationCreated}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1130,6 +1200,13 @@ const BuyerDashboard = () => {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Messages Tab */}
+          {activeTab === 'messages' && (
+            <div className="tab-content messages-tab">
+              <Messages />
             </div>
           )}
 
@@ -1473,6 +1550,15 @@ const BuyerDashboard = () => {
                   >
                     {selectedProduct.quantity === 0 ? 'Out of Stock' : 'Add to Cart 🛒'}
                   </button>
+                  <ContactFarmerButton
+                    farmerId={selectedProduct.farmerId}
+                    farmerName={selectedProduct.farmerName}
+                    productName={selectedProduct.name}
+                    onConversationCreated={(conversationId) => {
+                      handleConversationCreated(conversationId);
+                      closeProductModal();
+                    }}
+                  />
                   <button className="modal-cancel-btn" onClick={closeProductModal}>
                     Close
                   </button>
@@ -1625,6 +1711,7 @@ const BuyerDashboard = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

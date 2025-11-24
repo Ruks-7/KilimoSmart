@@ -42,6 +42,40 @@
   font-weight: 600;
 }
 
+/* Contact Farmer Button */
+.contact-farmer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #004a2f 0%, #006b44 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 74, 47, 0.2);
+}
+
+.contact-farmer-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 74, 47, 0.4);
+  background: linear-gradient(135deg, #006b44 0%, #228b22 100%);
+}
+
+.contact-farmer-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.contact-farmer-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .close-btn {
   background: rgba(255, 255, 255, 0.2);
   border: none;

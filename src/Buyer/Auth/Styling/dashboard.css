@@ -930,25 +930,59 @@ input, select, textarea {
 }
 
 /* Product action buttons */
-.product-actions {
-  display: flex;
+.product-actions,
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-sm);
   padding: 0 var(--space-lg) var(--space-lg);
+  width: 100%;
+}
+
+.action-buttons .contact-farmer-btn {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  padding: var(--space-sm) var(--space-md);
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: var(--transition-base);
+  border: none;
+  cursor: pointer;
+  min-height: 38px;
+  word-wrap: break-word;
+  text-align: center;
+}
+
+.action-buttons .contact-farmer-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  opacity: 0.9;
+}
+
+.action-buttons .contact-farmer-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .add-to-cart-btn {
-  flex: 1;
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--gradient-primary);
   color: white;
   border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   transition: var(--transition-base);
+  border: none;
+  cursor: pointer;
+  min-height: 38px;
+  word-wrap: break-word;
+  text-align: center;
 }
 
 .add-to-cart-btn:hover {
@@ -957,14 +991,18 @@ input, select, textarea {
 }
 
 .view-details-btn {
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
   background: var(--secondary-color);
   color: var(--primary-color);
   border: 2px solid var(--primary-color);
   border-radius: var(--radius-md);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: var(--transition-base);
+  cursor: pointer;
+  min-height: 38px;
+  word-wrap: break-word;
+  text-align: center;
 }
 
 .view-details-btn:hover {
@@ -1731,10 +1769,16 @@ input, select, textarea {
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-md);
   padding-top: var(--space-md);
   margin-top: auto;
   border-top: 2px solid var(--border-light);
+}
+
+.modal-actions .contact-farmer-btn {
+  flex: 1;
+  min-width: 140px;
 }
 
 .modal-add-to-cart-btn {
@@ -2293,6 +2337,16 @@ input, select, textarea {
     flex-direction: row;
     width: 100%;
     justify-content: space-between;
+  }
+
+  /* Product action buttons stack on mobile */
+  .action-buttons {
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+
+  .action-buttons .contact-farmer-btn {
+    grid-column: 1;
   }
 
   /* Modal adjustments */

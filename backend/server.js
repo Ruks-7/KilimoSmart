@@ -10,6 +10,7 @@ const farmerRoutes = require('./routes/farmer');
 const buyerRoutes = require('./routes/buyer');
 const mpesaRoutes = require('./routes/mpesa');
 const adminRoutes = require('./routes/admin');
+const messageRoutes = require('./routes/messages');
 const { startReservationCleaner } = require('./utils/reservationCleaner');
 
 // Initialize Express app
@@ -22,7 +23,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   process.env.FRONTEND_URL,
-  'https://kilimosmart.vercel.app', // Add your Vercel URL
+  'https://kilimosmart.vercel.app',
 ].filter(Boolean);
 
 app.use(cors({
@@ -31,7 +32,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all origins for now, restrict in production
+      callback(null, true); 
     }
   },
   credentials: true,
@@ -76,6 +77,7 @@ app.use('/api/farmer', farmerRoutes);
 app.use('/api/buyer', buyerRoutes);
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

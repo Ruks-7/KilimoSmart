@@ -226,7 +226,8 @@ const [formData, setFormData] = useState({
                     <div className="auth-header">
                         <h2>🛒 Buyer Login</h2>
                         <p>Welcome back! Sign in to your KilimoSmart account</p>
-                    </div>          <form onSubmit={handleSubmit} className="auth-form login-form">
+                    </div>         
+                    <form onSubmit={handleSubmit} className="auth-form login-form">
             {generalError && (
               <div className="error-message">
                 {generalError}
@@ -245,7 +246,7 @@ const [formData, setFormData] = useState({
                   onChange={handleChange}
                   onBlur={handleBlur}
                   className={getInputClass('email')}
-                  placeholder="farmer@example.com"
+                  placeholder="buyer@example.com"
                   disabled={isLoading}
                   autoComplete="email"
                 />

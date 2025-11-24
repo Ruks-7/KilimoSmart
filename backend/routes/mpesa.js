@@ -287,6 +287,30 @@ router.post('/callback', async (req, res) => {
             // Send receipt email
             await sendPurchaseReceipt(receiptData);
             console.log('✅ Receipt email sent for order:', payment.order_id);
+
+            // Create conversation between buyer and farmer for order communication
+            try {
+              const conversationCheck = await query(
+                `SELECT conversation_id FROM CONVERSATION 
+                 WHERE buyer_id = (SELECT buyer_id FROM "ORDER" WHERE order_id = $1)
+                   AND farmer_id = (SELECT farmer_id FROM "ORDER" WHERE order_id = $1)
+                   AND order_id = $1`,
+                [payment.order_id]
+              );
+
+              if (conversationCheck.rows.length === 0) {
+                await query(
+                  `INSERT INTO CONVERSATION (buyer_id, farmer_id, order_id, subject)
+                   SELECT buyer_id, farmer_id, order_id, 'Order #' || order_id
+                   FROM "ORDER"
+                   WHERE order_id = $1`,
+                  [payment.order_id]
+                );
+                console.log('✅ Conversation created for order:', payment.order_id);
+              }
+            } catch (convError) {
+              console.error('❌ Failed to create conversation:', convError.message || convError);
+            }
           } else {
             console.warn('⚠️ Order details not found for receipt email:', payment.order_id);
           }

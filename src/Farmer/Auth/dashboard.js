@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import CameraCapture from '../../components/CameraCapture';
 import { API_CONFIG } from '../../config/api';
 import { useLocation } from '../../hooks/useLocation';
+import Messages from './Messages';
 import './Styling/auth.css';
 import './Styling/dashboard.css';
 
@@ -41,6 +42,9 @@ const FarmerDashboard = () => {
     // Device detection
     const [isMobile, setIsMobile] = useState(false);
 
+    // Messages state
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
     // Product form state
     const [productForm, setProductForm] = useState({
         productName: '',
@@ -78,6 +82,13 @@ const FarmerDashboard = () => {
         // No need to listen for resize since user agent doesn't change
     }, []);
 
+    // Fetch unread messages count periodically
+    useEffect(() => {
+        fetchUnreadMessagesCount();
+        const interval = setInterval(fetchUnreadMessagesCount, 30000); // Every 30 seconds
+        return () => clearInterval(interval);
+    }, []);
+
     const fetchDashboardData = useCallback(async () => {
         try {
             // Check both localStorage and sessionStorage for token
@@ -90,6 +101,15 @@ const FarmerDashboard = () => {
                 console.log('❌ No token found in localStorage or sessionStorage');
                 showNotificationMessage('Please login to continue', 'error');
                 navigate('/loginF');
+                return;
+            }
+
+            // Check user role - redirect if not farmer
+            const userType = localStorage.getItem('userType') || sessionStorage.getItem('userType');
+            if (userType && userType.toLowerCase() === 'buyer') {
+                console.log('🚫 Access denied: Buyer trying to access farmer dashboard');
+                showNotificationMessage('Access denied. Redirecting to buyer dashboard...', 'error');
+                navigate('/buyer/dashboard');
                 return;
             }
 
@@ -262,6 +282,26 @@ const FarmerDashboard = () => {
         setNotificationType(type);
         setShowNotification(true);
         setTimeout(() => setShowNotification(false), 4000);
+    };
+
+    const fetchUnreadMessagesCount = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`${API_CONFIG.BASE_URL}/api/messages/messages/unread-count`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setUnreadMessagesCount(data.unreadCount || 0);
+            }
+        } catch (err) {
+            console.error('Failed to fetch unread messages count:', err);
+        }
     };
 
     const handleLogout = () => {
@@ -746,6 +786,17 @@ const FarmerDashboard = () => {
                     >
                         <span className="nav-icon">💰</span>
                         <span className="nav-label">Payments</span>
+                    </button>
+                    <button 
+                        className={`nav-btn ${activeTab === 'messages' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('messages')}
+                        title="Chat with buyers"
+                    >
+                        <span className="nav-icon">💬</span>
+                        <span className="nav-label">Messages</span>
+                        {unreadMessagesCount > 0 && (
+                            <span className="nav-badge">{unreadMessagesCount}</span>
+                        )}
                     </button>
                     <button 
                         className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`}
@@ -1363,6 +1414,13 @@ const FarmerDashboard = () => {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                )}
+
+                {/* Messages Tab */}
+                {activeTab === 'messages' && (
+                    <div className="tab-content messages-tab">
+                        <Messages />
                     </div>
                 )}
 

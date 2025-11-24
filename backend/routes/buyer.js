@@ -26,6 +26,7 @@ router.get('/products', async (req, res) => {
         p.price_per_unit as price,
         p.is_organic as "isOrganic",
         p.harvest_date as "harvestDate",
+        p.farmer_id as "farmerId",
         f.farm_name as "farmerName",
         l.county as location,
         u.phone_number as "farmerPhone",
