@@ -39,17 +39,20 @@ jobs:
           cd backend
           npm ci
       
-      # Run unit tests
-      - name: Run unit tests
+      # Install jest-junit temporarily to generate JUnit XML report
+      - name: Install jest-junit (CI only)
         run: |
           cd backend
-          npm run test:unit
-      
-      # Run integration tests
-      - name: Run integration tests
+          npm install --no-save jest-junit@^12
+
+      # Run all tests with JUnit reporter so test-reporter can find results
+      - name: Run tests (generate junit)
+        env:
+          JEST_JUNIT_OUTPUT: backend/coverage/junit.xml
         run: |
           cd backend
-          npm run test:integration
+          mkdir -p coverage
+          npx jest --ci --reporters=default --reporters=jest-junit --coverage --coverageDirectory=coverage
       
       # Upload coverage reports
       - name: Upload coverage to Codecov
