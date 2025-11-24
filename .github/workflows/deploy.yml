@@ -29,6 +29,11 @@ jobs:
           cd backend
           npm ci
       
+      - name: Install jest-junit (CI only)
+        run: |
+          cd backend
+          npm install --no-save jest-junit@^12
+      
       - name: Run all tests
         run: |
           cd backend
