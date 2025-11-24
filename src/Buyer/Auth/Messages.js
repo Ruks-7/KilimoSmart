@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './Styling/messages.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -18,27 +18,7 @@ const Messages = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fetch conversations on mount
-  useEffect(() => {
-    fetchConversations();
-    fetchUnreadCount();
-    
-    // Poll for new messages every 10 seconds
-    const interval = setInterval(() => {
-      if (selectedConversation) {
-        fetchMessages(selectedConversation.conversation_id, true);
-      }
-      fetchUnreadCount();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
@@ -58,9 +38,9 @@ const Messages = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMessages = async (conversationId, silent = false) => {
+  const fetchMessages = useCallback(async (conversationId, silent = false) => {
     try {
       if (!silent) setLoading(true);
       const token = localStorage.getItem('authToken');
@@ -84,9 +64,9 @@ const Messages = () => {
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [fetchConversations]);
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_URL}/messages/messages/unread-count`, {
@@ -102,7 +82,27 @@ const Messages = () => {
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
-  };
+  }, []);
+
+  // Fetch conversations on mount
+  useEffect(() => {
+    fetchConversations();
+    fetchUnreadCount();
+    
+    // Poll for new messages every 10 seconds
+    const interval = setInterval(() => {
+      if (selectedConversation) {
+        fetchMessages(selectedConversation.conversation_id, true);
+      }
+      fetchUnreadCount();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [fetchConversations, fetchMessages, fetchUnreadCount, selectedConversation]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleConversationClick = (conversation) => {
     setSelectedConversation(conversation);

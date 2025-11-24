@@ -42,6 +42,12 @@ router.get('/products', async (req, res) => {
     const params = [];
     let paramCount = 1;
 
+    // Exclude own products if user is also a farmer
+    if (req.user.farmerId) {
+      queryText += ` AND p.farmer_id != $${paramCount++}`;
+      params.push(req.user.farmerId);
+    }
+
     // Filter by category
     if (category) {
       queryText += ` AND p.category = $${paramCount++}`;
@@ -248,6 +254,15 @@ router.post('/orders', async (req, res) => {
       return res.status(400).json({ success: false, message: 'All items in an order must belong to the same farmer. Please place separate orders per farmer.' });
     }
     const farmerId = Array.from(farmerIds)[0];
+
+    // Prevent farmers from buying their own products (dual RBAC check)
+    if (req.user.farmerId && req.user.farmerId === farmerId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You cannot purchase your own products. Please switch to your buyer role or select products from other farmers.',
+        errorCode: 'CANNOT_BUY_OWN_PRODUCT'
+      });
+    }
 
     // Create order
     const orderResult = await query(

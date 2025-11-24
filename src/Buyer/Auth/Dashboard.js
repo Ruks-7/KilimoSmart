@@ -84,7 +84,6 @@ const BuyerDashboard = () => {
     }
   }, [cart]);
 
-  // Define fetchReviewableOrders early to avoid use-before-define ESLint warning
   const fetchReviewableOrders = useCallback(async () => {
     if (!user?.buyer_id) return;
     
@@ -317,6 +316,12 @@ const BuyerDashboard = () => {
   });
 
   const handleAddToCart = (product) => {
+    // Prevent adding own products to cart (dual RBAC check)
+    if (user?.farmer_id && product.farmerId === user.farmer_id) {
+      showNotification('You cannot purchase your own products. Please select products from other farmers.', 'error');
+      return;
+    }
+
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
       setCart(cart.map(item =>
@@ -1096,8 +1101,18 @@ const BuyerDashboard = () => {
                 </div>
               ) : filteredProducts.length > 0 ? (
                 <div className={`products-grid ${viewMode}-view`}>
-                  {filteredProducts.map((product) => (
-                    <div key={product.id} className="product-card">
+                  {filteredProducts.map((product) => {
+                    const isOwnProduct = user?.farmer_id && product.farmerId === user.farmer_id;
+                    return (
+                    <div key={product.id} className={`product-card ${isOwnProduct ? 'own-product' : ''}`}>
+                      {isOwnProduct && (
+                        <div className="own-product-badge" title="This is your own product">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                          </svg>
+                          Your Product
+                        </div>
+                      )}
                       <div className="product-image">
                         {product.imageUrl ? (
                           <img 
@@ -1182,7 +1197,8 @@ const BuyerDashboard = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               ) : (
                 <div className="no-products">
