@@ -38,34 +38,9 @@ jobs:
         run: |
           cd backend
           npm ci
-      
-      # Install jest-junit temporarily to generate JUnit XML report
-      - name: Install jest-junit (CI only)
-        run: |
-          cd backend
-          npm install --no-save jest-junit@^12
 
-      # Run all tests with JUnit reporter so test-reporter can find results
-      - name: Run tests (generate junit)
+      # Run all tests
+      - name: Run tests
         run: |
           cd backend
-          npx jest --ci --reporters=default --reporters=jest-junit --coverage --coverageDirectory=coverage
-      
-      # Upload coverage reports
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          directory: ./backend/coverage
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-      
-      # Report test results
-      - name: Test Report
-        uses: dorny/test-reporter@v1
-        if: success() || failure()
-        with:
-          name: Jest Tests
-          path: backend/junit.xml
-          reporter: jest-junit
-          fail-on-error: false
+          npm test
