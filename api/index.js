@@ -8,6 +8,9 @@ const farmerRoutes = require('../backend/routes/farmer');
 const buyerRoutes = require('../backend/routes/buyer');
 const mpesaRoutes = require('../backend/routes/mpesa');
 const adminRoutes = require('../backend/routes/admin');
+const messageRoutes = require('../backend/routes/messages');
+const reviewRoutes = require('../backend/routes/reviews');
+const rolesRoutes = require('../backend/routes/roles');
 
 const app = express();
 
@@ -67,6 +70,9 @@ app.use('/api/mpesa', (req, res, next) => {
 
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/roles', rolesRoutes);
 
 // Also mount routes without /api prefix (for Vercel routing)
 app.use('/auth', authRoutes);
@@ -74,8 +80,9 @@ app.use('/farmer', farmerRoutes);
 app.use('/buyer', buyerRoutes);
 app.use('/mpesa', mpesaRoutes);
 app.use('/admin', adminRoutes);
-app.use('/mpesa', mpesaRoutes);
-app.use('/admin', adminRoutes);
+app.use('/messages', messageRoutes);
+app.use('/reviews', reviewRoutes);
+app.use('/roles', rolesRoutes);
 
 // Error handling
 app.use((err, req, res, next) => {
