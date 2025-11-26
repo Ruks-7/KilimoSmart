@@ -90,7 +90,7 @@ const API_ENDPOINTS = {
     CONVERSATION_MESSAGES: (conversationId) => `${API_BASE_URL}/api/messages/conversations/${conversationId}/messages`,
     SEND_MESSAGE: `${API_BASE_URL}/api/messages/send`,
     CREATE_CONVERSATION: `${API_BASE_URL}/api/messages/conversations`,
-    UNREAD_COUNT: `${API_BASE_URL}/api/messages/messages/unread-count`,
+    UNREAD_COUNT: `${API_BASE_URL}/api/messages/unread-count`,
     MARK_READ: (conversationId) => `${API_BASE_URL}/api/messages/conversations/${conversationId}/read`,
   },
 };

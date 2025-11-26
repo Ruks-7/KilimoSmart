@@ -377,7 +377,7 @@ router.post('/conversations/:conversationId/messages', authenticateToken, async 
 /**
  * Get unread message count for authenticated user
  */
-router.get('/messages/unread-count', authenticateToken, async (req, res) => {
+router.get('/unread-count', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     const userType = req.user.role || req.user.userType; // Support both role and userType
