@@ -5,6 +5,8 @@ import { API_CONFIG } from '../../config/api';
 import { useLocation } from '../../hooks/useLocation';
 import Messages from './Messages';
 import RoleSwitcher from '../../components/RoleSwitcher';
+import OnboardingTour from '../../components/OnboardingTour';
+import HelpButton from '../../components/HelpButton';
 import './Styling/auth.css';
 import './Styling/dashboard.css';
 
@@ -1913,6 +1915,12 @@ const FarmerDashboard = () => {
                     maxPhotos={5}
                 />
             )}
+
+            {/* Onboarding Tour */}
+            <OnboardingTour userType="farmer" />
+
+            {/* Help Button */}
+            <HelpButton />
         </div>
     );
 };

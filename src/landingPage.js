@@ -68,6 +68,7 @@ const LandingPage = () => {
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#testimonials">Success Stories</a>
+            <a href="/faq">Help & FAQ</a>
             <a href="#contact">Contact</a>
             
             {/* Mobile Auth Buttons - Only shown in mobile menu */}

@@ -6,6 +6,8 @@ import ContactFarmerButton from '../../components/ContactFarmerButton';
 import Messages from './Messages';
 import ReviewModal from '../../components/ReviewModal';
 import RoleSwitcher from '../../components/RoleSwitcher';
+import OnboardingTour from '../../components/OnboardingTour';
+import HelpButton from '../../components/HelpButton';
 
 const BuyerDashboard = () => {
   const navigate = useNavigate();
@@ -1906,6 +1908,12 @@ const BuyerDashboard = () => {
           onSubmit={handleReviewSubmit}
         />
       )}
+
+      {/* Onboarding Tour */}
+      <OnboardingTour userType="buyer" />
+
+      {/* Help Button */}
+      <HelpButton />
     </div>
   );
 };

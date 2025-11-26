@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { API_CONFIG, apiCall } from '../config/api';
 import './Styling/admin.css';
 import { Line, Doughnut } from 'react-chartjs-2';
+import OnboardingTour from '../components/OnboardingTour';
+import HelpButton from '../components/HelpButton';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -474,6 +476,12 @@ const Dashboard = () => {
 			{showNotification && (
 				<div className={`toast-toast ${notificationType}`}>{notificationMessage}</div>
 			)}
+
+			{/* Onboarding Tour */}
+			<OnboardingTour userType="admin" />
+
+			{/* Help Button */}
+			<HelpButton />
 		</div>
 	);
 };

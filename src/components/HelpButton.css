@@ -1,0 +1,241 @@
+.help-button-container {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 9999;
+}
+
+.help-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2d7a4f 0%, #1e5938 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 4px 20px rgba(45, 122, 79, 0.4);
+  transition: all 0.3s ease;
+  animation: helpButtonPulse 2s infinite;
+}
+
+.help-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 30px rgba(45, 122, 79, 0.6);
+  animation: none;
+}
+
+.help-button.active {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  animation: none;
+}
+
+@keyframes helpButtonPulse {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(45, 122, 79, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 30px rgba(45, 122, 79, 0.6);
+  }
+}
+
+.help-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 9998;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.help-menu {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  width: 320px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  animation: slideUp 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.help-menu-header {
+  background: linear-gradient(135deg, #2d7a4f 0%, #1e5938 100%);
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+
+.help-menu-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.help-menu-options {
+  padding: 15px;
+}
+
+.help-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 10px;
+  background: #f7fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.help-option:last-child {
+  margin-bottom: 0;
+}
+
+.help-option:hover {
+  background: white;
+  border-color: #2d7a4f;
+  transform: translateX(5px);
+  box-shadow: 0 4px 12px rgba(45, 122, 79, 0.2);
+}
+
+.help-option-icon {
+  font-size: 24px;
+  color: #2d7a4f;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.help-option-content h4 {
+  margin: 0 0 5px 0;
+  color: #2d3748;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.help-option-content p {
+  margin: 0;
+  color: #718096;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.help-menu-footer {
+  background: #f7fafc;
+  padding: 12px 20px;
+  text-align: center;
+  border-top: 1px solid #e2e8f0;
+}
+
+.help-tip {
+  margin: 0;
+  font-size: 12px;
+  color: #718096;
+  font-style: italic;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .help-button-container {
+    bottom: 20px;
+    right: 20px;
+  }
+
+  .help-button {
+    width: 55px;
+    height: 55px;
+    font-size: 24px;
+  }
+
+  .help-menu {
+    bottom: 85px;
+    right: 20px;
+    width: calc(100vw - 40px);
+    max-width: 320px;
+  }
+
+  .help-menu-header h3 {
+    font-size: 18px;
+  }
+
+  .help-option {
+    padding: 12px;
+  }
+
+  .help-option-icon {
+    font-size: 20px;
+    margin-right: 12px;
+  }
+
+  .help-option-content h4 {
+    font-size: 15px;
+  }
+
+  .help-option-content p {
+    font-size: 12px;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .help-menu {
+    bottom: 85px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+
+  .help-button-container {
+    bottom: 15px;
+    right: 15px;
+  }
+
+  .help-button {
+    width: 50px;
+    height: 50px;
+    font-size: 22px;
+  }
+}
+
+/* Keyboard accessibility */
+.help-button:focus,
+.help-option:focus {
+  outline: 2px solid #2d7a4f;
+  outline-offset: 2px;
+}
+
+/* Print - hide help button when printing */
+@media print {
+  .help-button-container {
+    display: none;
+  }
+}
