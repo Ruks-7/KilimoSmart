@@ -76,10 +76,6 @@ const HelpButton = ({ onRestartTour }) => {
               </div>
             </button>
           </div>
-
-          <div className="help-menu-footer">
-            <p className="help-tip">💡 Tip: Press ESC to close this menu</p>
-          </div>
         </div>
       )}
 

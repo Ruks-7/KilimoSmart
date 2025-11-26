@@ -83,6 +83,16 @@ const API_ENDPOINTS = {
     ADD_ROLE: `${API_BASE_URL}/api/roles/add`,
     GET_PROFILE: `${API_BASE_URL}/api/roles/profile`,
   },
+
+  // Messages endpoints
+  MESSAGES: {
+    CONVERSATIONS: `${API_BASE_URL}/api/messages/conversations`,
+    CONVERSATION_MESSAGES: (conversationId) => `${API_BASE_URL}/api/messages/conversations/${conversationId}/messages`,
+    SEND_MESSAGE: `${API_BASE_URL}/api/messages/send`,
+    CREATE_CONVERSATION: `${API_BASE_URL}/api/messages/conversations`,
+    UNREAD_COUNT: `${API_BASE_URL}/api/messages/messages/unread-count`,
+    MARK_READ: (conversationId) => `${API_BASE_URL}/api/messages/conversations/${conversationId}/read`,
+  },
 };
 
 // Helper function to get headers with auth token

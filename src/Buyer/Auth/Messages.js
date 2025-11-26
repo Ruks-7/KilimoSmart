@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './Styling/messages.css';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import API_CONFIG from '../../config/api';
 
 const Messages = () => {
   const [conversations, setConversations] = useState([]);
@@ -22,7 +21,7 @@ const Messages = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/messages/conversations`, {
+      const response = await fetch(API_CONFIG.ENDPOINTS.MESSAGES.CONVERSATIONS, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -45,7 +44,7 @@ const Messages = () => {
       if (!silent) setLoading(true);
       const token = localStorage.getItem('authToken');
       const response = await fetch(
-        `${API_URL}/messages/conversations/${conversationId}/messages`,
+        API_CONFIG.ENDPOINTS.MESSAGES.CONVERSATION_MESSAGES(conversationId),
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -69,7 +68,7 @@ const Messages = () => {
   const fetchUnreadCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/messages/messages/unread-count`, {
+      const response = await fetch(API_CONFIG.ENDPOINTS.MESSAGES.UNREAD_COUNT, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -118,7 +117,7 @@ const Messages = () => {
       setSending(true);
       const token = localStorage.getItem('authToken');
       const response = await fetch(
-        `${API_URL}/messages/conversations/${selectedConversation.conversation_id}/messages`,
+        API_CONFIG.ENDPOINTS.MESSAGES.CONVERSATION_MESSAGES(selectedConversation.conversation_id),
         {
           method: 'POST',
           headers: {

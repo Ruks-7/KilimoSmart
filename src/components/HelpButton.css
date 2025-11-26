@@ -149,19 +149,6 @@
   line-height: 1.4;
 }
 
-.help-menu-footer {
-  background: #f7fafc;
-  padding: 12px 20px;
-  text-align: center;
-  border-top: 1px solid #e2e8f0;
-}
-
-.help-tip {
-  margin: 0;
-  font-size: 12px;
-  color: #718096;
-  font-style: italic;
-}
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
