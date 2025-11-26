@@ -228,4 +228,256 @@ router.get('/sales-over-time', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/admin/messages
+ * Returns all conversations with message statistics for admin oversight
+ */
+router.get('/messages', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 25, 200);
+    const offset = (page - 1) * limit;
+    const search = req.query.search ? req.query.search.trim() : null;
+    const status = req.query.status ? req.query.status.trim() : null;
+
+    const params = [limit, offset];
+    let whereConditions = [];
+    
+    // Add search condition (search by buyer/farmer names or subject)
+    if (search) {
+      whereConditions.push(`(
+        u_buyer.first_name ILIKE $${params.length + 1} OR 
+        u_buyer.last_name ILIKE $${params.length + 1} OR
+        u_farmer.first_name ILIKE $${params.length + 1} OR 
+        u_farmer.last_name ILIKE $${params.length + 1} OR
+        c.subject ILIKE $${params.length + 1}
+      )`);
+      params.push(`%${search}%`);
+    }
+    
+    // Add status filter
+    if (status && ['active', 'archived', 'closed'].includes(status)) {
+      whereConditions.push(`c.status = $${params.length + 1}`);
+      params.push(status);
+    }
+    
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Build query to get conversations with details
+    const conversationsQuery = `
+      SELECT 
+        c.conversation_id,
+        c.buyer_id,
+        c.farmer_id,
+        c.order_id,
+        c.subject,
+        c.status,
+        c.created_at,
+        c.last_message_at,
+        u_buyer.first_name || ' ' || u_buyer.last_name as buyer_name,
+        u_buyer.email as buyer_email,
+        u_farmer.first_name || ' ' || u_farmer.last_name as farmer_name,
+        u_farmer.email as farmer_email,
+        (
+          SELECT COUNT(*)
+          FROM MESSAGE m
+          WHERE m.conversation_id = c.conversation_id
+            AND m.is_deleted = FALSE
+        ) as message_count,
+        (
+          SELECT COUNT(*)
+          FROM MESSAGE m
+          WHERE m.conversation_id = c.conversation_id
+            AND m.is_read = FALSE
+        ) as unread_count,
+        (
+          SELECT message_text
+          FROM MESSAGE m
+          WHERE m.conversation_id = c.conversation_id
+            AND m.is_deleted = FALSE
+          ORDER BY m.created_at DESC
+          LIMIT 1
+        ) as last_message
+      FROM CONVERSATION c
+      LEFT JOIN BUYER b ON c.buyer_id = b.buyer_id
+      LEFT JOIN FARMER f ON c.farmer_id = f.farmer_id
+      LEFT JOIN "USER" u_buyer ON b.user_id = u_buyer.user_id
+      LEFT JOIN "USER" u_farmer ON f.user_id = u_farmer.user_id
+      ${whereClause}
+      ORDER BY c.last_message_at DESC
+      LIMIT $1 OFFSET $2
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*) as count
+      FROM CONVERSATION c
+      LEFT JOIN BUYER b ON c.buyer_id = b.buyer_id
+      LEFT JOIN FARMER f ON c.farmer_id = f.farmer_id
+      LEFT JOIN "USER" u_buyer ON b.user_id = u_buyer.user_id
+      LEFT JOIN "USER" u_farmer ON f.user_id = u_farmer.user_id
+      ${whereClause}
+    `;
+
+    const conversations = await query(conversationsQuery, params);
+    
+    // For count query, remove limit and offset params
+    const countParams = params.slice(2);
+    const countRes = await query(countQuery, countParams);
+
+    // Get overall message statistics
+    const statsQuery = `
+      SELECT 
+        COUNT(DISTINCT c.conversation_id) as total_conversations,
+        COUNT(m.message_id) as total_messages,
+        COUNT(*) FILTER (WHERE c.status = 'active') as active_conversations,
+        COUNT(*) FILTER (WHERE c.status = 'archived') as archived_conversations,
+        COUNT(*) FILTER (WHERE c.status = 'closed') as closed_conversations,
+        COUNT(m.message_id) FILTER (WHERE m.is_read = FALSE) as total_unread
+      FROM CONVERSATION c
+      LEFT JOIN MESSAGE m ON c.conversation_id = m.conversation_id AND m.is_deleted = FALSE
+    `;
+    const statsRes = await query(statsQuery);
+    const stats = {
+      totalConversations: parseInt(statsRes.rows[0].total_conversations || 0),
+      totalMessages: parseInt(statsRes.rows[0].total_messages || 0),
+      activeConversations: parseInt(statsRes.rows[0].active_conversations || 0),
+      archivedConversations: parseInt(statsRes.rows[0].archived_conversations || 0),
+      closedConversations: parseInt(statsRes.rows[0].closed_conversations || 0),
+      totalUnread: parseInt(statsRes.rows[0].total_unread || 0)
+    };
+
+    return res.status(200).json({ 
+      success: true, 
+      conversations: conversations.rows,
+      total: parseInt(countRes.rows[0].count), 
+      page, 
+      limit,
+      stats 
+    });
+  } catch (error) {
+    console.error('Admin GET /messages error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch messages', 
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+    });
+  }
+});
+
+/**
+ * GET /api/admin/messages/:conversationId
+ * Returns all messages in a specific conversation for admin review
+ */
+router.get('/messages/:conversationId', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    // Get conversation details
+    const conversationQuery = `
+      SELECT 
+        c.conversation_id,
+        c.buyer_id,
+        c.farmer_id,
+        c.order_id,
+        c.subject,
+        c.status,
+        c.created_at,
+        c.last_message_at,
+        u_buyer.first_name || ' ' || u_buyer.last_name as buyer_name,
+        u_buyer.email as buyer_email,
+        u_farmer.first_name || ' ' || u_farmer.last_name as farmer_name,
+        u_farmer.email as farmer_email
+      FROM CONVERSATION c
+      LEFT JOIN BUYER b ON c.buyer_id = b.buyer_id
+      LEFT JOIN FARMER f ON c.farmer_id = f.farmer_id
+      LEFT JOIN "USER" u_buyer ON b.user_id = u_buyer.user_id
+      LEFT JOIN "USER" u_farmer ON f.user_id = u_farmer.user_id
+      WHERE c.conversation_id = $1
+    `;
+
+    const conversationRes = await query(conversationQuery, [conversationId]);
+
+    if (conversationRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    // Get all messages in the conversation
+    const messagesQuery = `
+      SELECT 
+        m.message_id,
+        m.sender_id,
+        m.sender_type,
+        m.message_text,
+        m.is_read,
+        m.read_at,
+        m.created_at,
+        u.first_name || ' ' || u.last_name as sender_name,
+        u.email as sender_email
+      FROM MESSAGE m
+      JOIN "USER" u ON m.sender_id = u.user_id
+      WHERE m.conversation_id = $1
+        AND m.is_deleted = FALSE
+      ORDER BY m.created_at ASC
+    `;
+
+    const messagesRes = await query(messagesQuery, [conversationId]);
+
+    return res.status(200).json({
+      success: true,
+      conversation: conversationRes.rows[0],
+      messages: messagesRes.rows
+    });
+  } catch (error) {
+    console.error('Admin GET /messages/:conversationId error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch conversation details', 
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+    });
+  }
+});
+
+/**
+ * PUT /api/admin/messages/:conversationId/status
+ * Update conversation status (active, archived, closed)
+ */
+router.put('/messages/:conversationId/status', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['active', 'archived', 'closed'].includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid status. Must be one of: active, archived, closed' 
+      });
+    }
+
+    const result = await query(
+      `UPDATE CONVERSATION 
+       SET status = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE conversation_id = $2
+       RETURNING conversation_id, status`,
+      [status, conversationId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Conversation status updated',
+      conversation: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Admin PUT /messages/:conversationId/status error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update conversation status', 
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+    });
+  }
+});
+
 module.exports = router;

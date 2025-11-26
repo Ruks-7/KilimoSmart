@@ -3,6 +3,8 @@
     max-width: 1400px;
     margin: 0 auto;
     padding: 32px 24px;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .dashboard-grid {
@@ -832,6 +834,20 @@
 .admin-table tbody tr:hover {
     background: linear-gradient(to right, rgba(0, 74, 47, 0.02) 0%, rgba(0, 74, 47, 0.01) 100%);
     transform: scale(1.005);
+}
+
+.admin-table tbody tr.clickable-row {
+    cursor: pointer;
+}
+
+.admin-table tbody tr.selected-row {
+    background: linear-gradient(to right, rgba(0, 74, 47, 0.08) 0%, rgba(0, 74, 47, 0.05) 100%);
+    border-left: 4px solid var(--primary-color);
+    font-weight: 600;
+}
+
+.admin-table tbody tr.selected-row:hover {
+    background: linear-gradient(to right, rgba(0, 74, 47, 0.1) 0%, rgba(0, 74, 47, 0.07) 100%);
 }
 
 .order-id,
@@ -2112,6 +2128,30 @@
     }
 }
 
+@media (max-width: 900px) {
+    .admin-main.container > div[style*="gridTemplateColumns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    .admin-table td {
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Make filters stack vertically on small screens */
+    .filters-section {
+        flex-direction: column !important;
+    }
+
+    .filters-section input,
+    .filters-section select,
+    .filters-section button {
+        flex: 1 1 auto !important;
+        width: 100%;
+    }
+}
+
 @media (max-width: 700px) {
     .admin-nav {
         display: none;
@@ -2123,6 +2163,14 @@
 
     .quick-actions-buttons {
         grid-template-columns: 1fr;
+    }
+
+    /* Hide less important columns on mobile */
+    .admin-table th:nth-child(4),
+    .admin-table td:nth-child(4),
+    .admin-table th:nth-child(5),
+    .admin-table td:nth-child(5) {
+        display: none;
     }
 }
 /* Mobile hamburger/menu adjustments */

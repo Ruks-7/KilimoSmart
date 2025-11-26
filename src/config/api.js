@@ -58,6 +58,9 @@ const API_ENDPOINTS = {
     TRANSACTIONS: `${API_BASE_URL}/api/admin/transactions`,
     STATS: `${API_BASE_URL}/api/admin/stats`,
     SALES_OVER_TIME: `${API_BASE_URL}/api/admin/sales-over-time`,
+    MESSAGES: `${API_BASE_URL}/api/admin/messages`,
+    MESSAGE_DETAILS: (conversationId) => `${API_BASE_URL}/api/admin/messages/${conversationId}`,
+    UPDATE_MESSAGE_STATUS: (conversationId) => `${API_BASE_URL}/api/admin/messages/${conversationId}/status`,
   },
   
   // Reviews endpoints

@@ -18,6 +18,7 @@ import DashboardAdmin from './Admin/Dashboard';
 import AdminUsers from './Admin/Users';
 import AdminTransactions from './Admin/Transactions';
 import AdminReports from './Admin/Reports';
+import AdminMessages from './Admin/Messages';
 import AdminLogin from './Admin/loginAdmin';
 import './Admin/Styling/admin.css';
 
@@ -36,6 +37,7 @@ function App() {
       <Route path="/admin" element={<DashboardAdmin />} />
   <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin/users" element={<AdminUsers />} />
+      <Route path="/admin/messages" element={<AdminMessages />} />
       <Route path="/admin/transactions" element={<AdminTransactions />} />
       <Route path="/admin/reports" element={<AdminReports />} />
       </Routes>

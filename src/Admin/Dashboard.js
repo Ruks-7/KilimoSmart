@@ -370,6 +370,10 @@ const Dashboard = () => {
 									<span className="btn-icon">👥</span>
 									<span className="btn-text">Users</span>
 								</button>
+								<button className="btn-action" onClick={() => navigate('/admin/messages')}>
+									<span className="btn-icon">💬</span>
+									<span className="btn-text">Messages</span>
+								</button>
 								<button className="btn-action reports" onClick={() => navigate('/admin/reports')}>
 									<span className="btn-icon">📄</span>
 									<span className="btn-text">Reports</span>

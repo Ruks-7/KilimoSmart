@@ -68,6 +68,10 @@ const AdminNavbar = () => {
 						<span className="nav-icon">👥</span>
 						<span className="nav-text">Users</span>
 					</Link>
+					<Link to="/admin/messages" className="nav-link" onClick={() => setMenuOpen(false)}>
+						<span className="nav-icon">💬</span>
+						<span className="nav-text">Messages</span>
+					</Link>
 					<Link to="/admin/transactions" className="nav-link" onClick={() => setMenuOpen(false)}>
 						<span className="nav-icon">💳</span>
 						<span className="nav-text">Transactions</span>
