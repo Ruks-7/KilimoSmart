@@ -1,5 +1,5 @@
 import AdminNavbar from './AdminNavbar';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_CONFIG, apiCall } from '../config/api';
 import './Styling/admin.css';
@@ -55,18 +55,7 @@ const Messages = () => {
 		return false;
 	};
 
-	useEffect(() => {
-		if (checkTokenExpiry()) {
-			localStorage.removeItem('authToken');
-			localStorage.removeItem('user');
-			navigate('/admin/login');
-			return;
-		}
-
-		loadConversations();
-	}, [navigate, page, searchQuery, statusFilter]);
-
-	const loadConversations = async () => {
+	const loadConversations = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 
@@ -93,7 +82,18 @@ const Messages = () => {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [page, limit, searchQuery, statusFilter]);
+
+	useEffect(() => {
+		if (checkTokenExpiry()) {
+			localStorage.removeItem('authToken');
+			localStorage.removeItem('user');
+			navigate('/admin/login');
+			return;
+		}
+
+		loadConversations();
+	}, [navigate, loadConversations]);
 
 	const loadConversationDetails = async (conversationId) => {
 		setLoadingMessages(true);
