@@ -221,7 +221,7 @@ const BuyerDashboard = () => {
     setError('');
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.ORDERS}`, {
+      const response = await fetch(API_CONFIG.ENDPOINTS.BUYER.ORDERS, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -143,7 +143,7 @@ const SignUp = () => {
         
         try {
             console.log('🔐 Verifying OTP...');
-            const verifyResponse = await fetch(`${API_CONFIG.ENDPOINTS.AUTH.VERIFY_OTP}`, {
+            const verifyResponse = await fetch(API_CONFIG.ENDPOINTS.AUTH.VERIFY_OTP, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -216,7 +216,7 @@ const SignUp = () => {
         
         try {
             console.log('🔄 Resending OTP...');
-            const response = await fetch(`${API_CONFIG.ENDPOINTS.AUTH.RESEND_OTP}`, {
+            const response = await fetch(API_CONFIG.ENDPOINTS.AUTH.RESEND_OTP, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -293,7 +293,7 @@ const SignUp = () => {
             
             // Step 2: Send OTP to email
             try {
-                const otpResponse = await fetch(`${API_CONFIG.ENDPOINTS.AUTH.SEND_OTP}`, {
+                const otpResponse = await fetch(API_CONFIG.ENDPOINTS.AUTH.SEND_OTP, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
