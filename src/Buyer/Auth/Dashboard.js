@@ -282,7 +282,7 @@ const BuyerDashboard = () => {
   const fetchUnreadMessagesCount = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/messages/messages/unread-count`, {
+      const response = await fetch(API_CONFIG.ENDPOINTS.MESSAGES.UNREAD_COUNT, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

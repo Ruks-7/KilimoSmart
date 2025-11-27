@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import './CameraCapture.css'; // Reuse existing component styles
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import API_CONFIG from '../config/api';
 
 const ContactFarmerButton = ({ farmerId, farmerName, productName, onConversationCreated }) => {
   const [isCreating, setIsCreating] = useState(false);
@@ -17,7 +16,7 @@ const ContactFarmerButton = ({ farmerId, farmerName, productName, onConversation
       }
 
       console.log('Creating conversation with:', { farmerId, productName });
-      console.log('API URL:', `${API_URL}/messages/conversations`);
+      console.log('API URL:', API_CONFIG.ENDPOINTS.MESSAGES.CONVERSATIONS);
 
       // Validate farmerId
       if (!farmerId) {
@@ -27,7 +26,7 @@ const ContactFarmerButton = ({ farmerId, farmerName, productName, onConversation
       }
 
       // Create or get existing conversation
-      const response = await fetch(`${API_URL}/messages/conversations`, {
+      const response = await fetch(API_CONFIG.ENDPOINTS.MESSAGES.CONVERSATIONS, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
