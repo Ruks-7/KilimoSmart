@@ -20,17 +20,28 @@ const Messages = () => {
   const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      
+      if (!token) {
+        console.error('❌ No auth token found in localStorage or sessionStorage');
+        return;
+      }
+      
       const response = await fetch(API_CONFIG.ENDPOINTS.MESSAGES.CONVERSATIONS, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
+
+      console.log('Response status:', response.status);
 
       const data = await response.json();
       if (data.success) {
         setConversations(data.conversations);
         setUnreadCount(data.totalUnread);
+      } else {
+        console.error('API error:', data.message);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -42,12 +53,19 @@ const Messages = () => {
   const fetchMessages = useCallback(async (conversationId, silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      
+      if (!token) {
+        console.error('❌ No auth token for fetching messages');
+        return;
+      }
+      
       const response = await fetch(
         API_CONFIG.ENDPOINTS.MESSAGES.CONVERSATION_MESSAGES(conversationId),
         {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -57,6 +75,8 @@ const Messages = () => {
         setMessages(data.messages);
         // Update conversation list to reflect read status
         fetchConversations();
+      } else {
+        console.error('Error:', data.message);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -67,16 +87,25 @@ const Messages = () => {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      
+      if (!token) {
+        console.warn('⚠️ No auth token for unread count');
+        return;
+      }
+      
       const response = await fetch(API_CONFIG.ENDPOINTS.MESSAGES.UNREAD_COUNT, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       const data = await response.json();
       if (data.success) {
         setUnreadCount(data.unreadCount);
+      } else {
+        console.error('Unread count error:', data.message);
       }
     } catch (error) {
       console.error('Error fetching unread count:', error);

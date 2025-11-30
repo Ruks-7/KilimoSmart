@@ -6,13 +6,25 @@ const { authenticateToken } = require('../middleware/auth');
 // Create a review
 router.post('/', authenticateToken, async (req, res) => {
   const { orderId, farmerId, rating, comment } = req.body;
-  const buyerId = req.user.userId;
+  const buyerId = req.user.buyerId || req.user.userId;
 
   try {
+    // Validate required fields
+    if (!orderId || !farmerId || !rating) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: orderId, farmerId, and rating are required' 
+      });
+    }
+
+    // Validate rating
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
     // Verify the order exists and belongs to the buyer and is completed
     const orderCheck = await pool.query(
       `SELECT o.order_id, o.status, o.farmer_id 
-       FROM ORDERS o 
+       FROM "ORDER" o 
        WHERE o.order_id = $1 AND o.buyer_id = $2 AND o.status = 'completed'`,
       [orderId, buyerId]
     );
@@ -35,24 +47,28 @@ router.post('/', authenticateToken, async (req, res) => {
     );
 
     if (existingReview.rows.length > 0) {
-      return res.status(409).json({ error: 'Review already exists for this order' });
+      return res.status(409).json({ error: 'You have already reviewed this order' });
     }
 
     // Create the review
     const result = await pool.query(
       `INSERT INTO REVIEWS (order_id, buyer_id, farmer_id, rating, comment)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [orderId, buyerId, farmerId, rating, comment]
+       RETURNING review_id, order_id, buyer_id, farmer_id, rating, comment, created_at`,
+      [orderId, buyerId, farmerId, rating, comment || null]
     );
 
     res.status(201).json({
-      message: 'Review created successfully',
+      success: true,
+      message: 'Review submitted successfully',
       review: result.rows[0]
     });
   } catch (error) {
     console.error('Error creating review:', error);
-    res.status(500).json({ error: 'Failed to create review' });
+    res.status(500).json({ 
+      error: 'Failed to create review',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -178,12 +194,20 @@ router.get('/buyer/:buyerId', authenticateToken, async (req, res) => {
 router.get('/reviewable-orders/:buyerId', authenticateToken, async (req, res) => {
   const { buyerId } = req.params;
 
+  console.log('📝 Fetching reviewable orders for buyer:', buyerId);
+  console.log('🔐 Authenticated user:', req.user);
+
   // Verify the buyer is requesting their own orders
-  if (req.user.userId !== buyerId) {
+  const requestorBuyerId = req.user.buyerId || req.user.userId;
+  console.log('🔍 Requestor buyerId:', requestorBuyerId);
+  
+  if (requestorBuyerId !== buyerId) {
+    console.log('❌ Unauthorized: requestor ID does not match');
     return res.status(403).json({ error: 'Unauthorized access' });
   }
 
   try {
+    console.log('🔎 Querying database for completed orders...');
     const result = await pool.query(
       `SELECT DISTINCT
         o.order_id,
@@ -191,18 +215,22 @@ router.get('/reviewable-orders/:buyerId', authenticateToken, async (req, res) =>
         o.order_date,
         o.status,
         f.farmer_id,
-        f.first_name || ' ' || f.last_name as farmer_name,
-        f.location as farmer_location,
+        u.first_name || ' ' || u.last_name as farmer_name,
+        l.county as farmer_location,
         f.reputation_score as farmer_rating,
         r.review_id,
         r.rating as review_rating
-       FROM ORDERS o
-       JOIN FARMERS f ON o.farmer_id = f.farmer_id
+       FROM "ORDER" o
+       JOIN FARMER f ON o.farmer_id = f.farmer_id
+       JOIN "USER" u ON f.user_id = u.user_id
+       LEFT JOIN LOCATION l ON f.location_id = l.location_id
        LEFT JOIN REVIEWS r ON o.order_id = r.order_id AND r.buyer_id = $1
        WHERE o.buyer_id = $1 AND o.status = 'completed'
        ORDER BY o.order_date DESC`,
       [buyerId]
     );
+
+    console.log(`✅ Found ${result.rows.length} completed orders`);
 
     // Get order items for each order
     const ordersWithItems = await Promise.all(
@@ -210,35 +238,49 @@ router.get('/reviewable-orders/:buyerId', authenticateToken, async (req, res) =>
         const itemsResult = await pool.query(
           `SELECT 
             oi.product_id,
-            p.name as product_name,
-            oi.quantity,
-            p.unit
+            p.product_name,
+            oi.quantity_ordered as quantity,
+            p.unit_of_measure as unit
            FROM ORDER_ITEMS oi
-           JOIN PRODUCTS p ON oi.product_id = p.product_id
+           JOIN PRODUCT p ON oi.product_id = p.product_id
            WHERE oi.order_id = $1`,
           [order.order_id]
         );
 
         return {
           orderId: order.order_id,
-          totalAmount: order.total_amount,
+          totalAmount: parseFloat(order.total_amount),
           orderDate: order.order_date,
           status: order.status,
           farmerId: order.farmer_id,
           farmerName: order.farmer_name,
           farmerLocation: order.farmer_location,
-          farmerRating: order.farmer_rating,
+          farmerRating: parseFloat(order.farmer_rating) || 0,
           hasReview: !!order.review_id,
           reviewRating: order.review_rating,
-          items: itemsResult.rows
+          items: itemsResult.rows.map(item => ({
+            productId: item.product_id,
+            productName: item.product_name,
+            quantity: parseFloat(item.quantity),
+            unit: item.unit
+          }))
         };
       })
     );
 
-    res.json({ orders: ordersWithItems });
+    console.log(`📦 Returning ${ordersWithItems.length} orders with items`);
+    
+    res.json({ 
+      success: true,
+      orders: ordersWithItems,
+      count: ordersWithItems.length
+    });
   } catch (error) {
-    console.error('Error fetching reviewable orders:', error);
-    res.status(500).json({ error: 'Failed to fetch reviewable orders' });
+    console.error('❌ Error fetching reviewable orders:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch reviewable orders',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

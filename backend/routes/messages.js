@@ -9,24 +9,25 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/conversations', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const userType = req.user.role || req.user.userType; // Support both role and userType
-
-    // Get buyer_id or farmer_id based on user type
+    
+    // Determine user type based on which profile exists
+    let userType = 'buyer'; // Default to buyer
     let participantId;
-    if (userType === 'buyer') {
-      const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
-      if (buyerRes.rows.length === 0) {
-        return res.status(404).json({ success: false, message: 'Buyer profile not found' });
-      }
+
+    // First check if user has a buyer profile
+    const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
+    if (buyerRes.rows.length > 0) {
+      userType = 'buyer';
       participantId = buyerRes.rows[0].buyer_id;
-    } else if (userType === 'farmer') {
-      const farmerRes = await query('SELECT farmer_id FROM FARMER WHERE user_id = $1', [userId]);
-      if (farmerRes.rows.length === 0) {
-        return res.status(404).json({ success: false, message: 'Farmer profile not found' });
-      }
-      participantId = farmerRes.rows[0].farmer_id;
     } else {
-      return res.status(403).json({ success: false, message: 'Invalid user type' });
+      // If no buyer profile, check for farmer profile
+      const farmerRes = await query('SELECT farmer_id FROM FARMER WHERE user_id = $1', [userId]);
+      if (farmerRes.rows.length > 0) {
+        userType = 'farmer';
+        participantId = farmerRes.rows[0].farmer_id;
+      } else {
+        return res.status(404).json({ success: false, message: 'User profile not found' });
+      }
     }
 
     // Fetch conversations with last message and unread count
@@ -127,10 +128,9 @@ router.get('/conversations', authenticateToken, async (req, res) => {
 router.post('/conversations', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const userType = req.user.role || req.user.userType; // Support both role and userType
     const { farmerId, orderId, subject } = req.body;
 
-    console.log('Create conversation request:', { userId, userType, farmerId, orderId, subject });
+    console.log('Create conversation request:', { userId, farmerId, orderId, subject });
 
     // Validate farmerId
     if (!farmerId) {
@@ -141,26 +141,17 @@ router.post('/conversations', authenticateToken, async (req, res) => {
       });
     }
 
-    // Only buyers can initiate conversations
-    if (userType !== 'buyer') {
+    // Check if user has a buyer profile
+    const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
+    if (buyerRes.rows.length === 0) {
       return res.status(403).json({ 
         success: false, 
         message: 'Only buyers can initiate conversations',
-        debug: { userType, role: req.user.role, userId }
-      });
-    }
-
-    // Get buyer_id
-    const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
-    if (buyerRes.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Buyer profile not found',
-        debug: { userId }
+        debug: { userId, hasBuyerProfile: false }
       });
     }
     const buyerId = buyerRes.rows[0].buyer_id;
-    console.log('Buyer ID found:', buyerId);
+    console.log('✅ Buyer ID found:', buyerId);
 
     // Verify farmer exists
     const farmerCheck = await query('SELECT farmer_id FROM FARMER WHERE farmer_id = $1', [farmerId]);
@@ -229,9 +220,20 @@ router.get('/conversations/:conversationId/messages', authenticateToken, async (
   try {
     const { conversationId } = req.params;
     const userId = req.user.userId;
-    const userType = req.user.role || req.user.userType; // Support both role and userType
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
+
+    // Determine user type based on which profile exists
+    let userType = 'buyer';
+    const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
+    if (buyerRes.rows.length === 0) {
+      const farmerRes = await query('SELECT farmer_id FROM FARMER WHERE user_id = $1', [userId]);
+      if (farmerRes.rows.length > 0) {
+        userType = 'farmer';
+      }
+    }
+
+    console.log(`📨 Fetching messages for conversation ${conversationId} by user ${userId} (${userType})`);
 
     // Verify user is part of this conversation
     const participantCheck = await query(
@@ -248,6 +250,7 @@ router.get('/conversations/:conversationId/messages', authenticateToken, async (
     );
 
     if (participantCheck.rows.length === 0) {
+      console.log(`❌ Access denied: User ${userId} not part of conversation ${conversationId}`);
       return res.status(403).json({ success: false, message: 'Access denied to this conversation' });
     }
 
@@ -298,16 +301,12 @@ router.get('/conversations/:conversationId/messages', authenticateToken, async (
   }
 });
 
-/**
- * Send a new message
- * POST body: { messageText }
- */
+// Send a new message
 router.post('/conversations/:conversationId/messages', authenticateToken, async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { messageText } = req.body;
     const userId = req.user.userId;
-    const userType = req.user.role || req.user.userType; // Support both role and userType
 
     // Validate message text
     if (!messageText || messageText.trim().length === 0) {
@@ -316,6 +315,16 @@ router.post('/conversations/:conversationId/messages', authenticateToken, async 
 
     if (messageText.trim().length > 5000) {
       return res.status(400).json({ success: false, message: 'Message too long (max 5000 characters)' });
+    }
+
+    // Determine user type based on which profile exists
+    let userType = 'buyer';
+    const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
+    if (buyerRes.rows.length === 0) {
+      const farmerRes = await query('SELECT farmer_id FROM FARMER WHERE user_id = $1', [userId]);
+      if (farmerRes.rows.length > 0) {
+        userType = 'farmer';
+      }
     }
 
     // Verify user is part of this conversation
@@ -380,24 +389,24 @@ router.post('/conversations/:conversationId/messages', authenticateToken, async 
 router.get('/unread-count', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const userType = req.user.role || req.user.userType; // Support both role and userType
-
-    // Get participant ID
+    // Determine user type based on which profile exists
+    let userType = 'buyer'; // Default to buyer
     let participantId;
-    if (userType === 'buyer') {
-      const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
-      if (buyerRes.rows.length === 0) {
-        return res.status(404).json({ success: false, message: 'Buyer profile not found' });
-      }
+
+    // First check if user has a buyer profile
+    const buyerRes = await query('SELECT buyer_id FROM BUYER WHERE user_id = $1', [userId]);
+    if (buyerRes.rows.length > 0) {
+      userType = 'buyer';
       participantId = buyerRes.rows[0].buyer_id;
-    } else if (userType === 'farmer') {
-      const farmerRes = await query('SELECT farmer_id FROM FARMER WHERE user_id = $1', [userId]);
-      if (farmerRes.rows.length === 0) {
-        return res.status(404).json({ success: false, message: 'Farmer profile not found' });
-      }
-      participantId = farmerRes.rows[0].farmer_id;
     } else {
-      return res.status(403).json({ success: false, message: 'Invalid user type' });
+      // If no buyer profile, check for farmer profile
+      const farmerRes = await query('SELECT farmer_id FROM FARMER WHERE user_id = $1', [userId]);
+      if (farmerRes.rows.length > 0) {
+        userType = 'farmer';
+        participantId = farmerRes.rows[0].farmer_id;
+      } else {
+        return res.status(404).json({ success: false, message: 'User profile not found' });
+      }
     }
 
     // Count unread messages

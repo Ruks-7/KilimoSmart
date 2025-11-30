@@ -56,6 +56,12 @@ const BuyerDashboard = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedOrderForReview, setSelectedOrderForReview] = useState(null);
   const [reviewableOrders, setReviewableOrders] = useState([]);
+  
+  // Orders pagination and filtering
+  const [displayedOrdersCount, setDisplayedOrdersCount] = useState(10);
+  const [orderFilter, setOrderFilter] = useState('all'); // 'all', 'pending', 'completed', 'cancelled'
+  const [orderSortBy, setOrderSortBy] = useState('newest'); // 'newest', 'oldest', 'amount-high', 'amount-low'
+  const ordersPerPage = 10;
 
   // Handle window resize for filters
   useEffect(() => {
@@ -87,31 +93,42 @@ const BuyerDashboard = () => {
   }, [cart]);
 
   const fetchReviewableOrders = useCallback(async () => {
-    if (!user?.buyer_id) return;
+    if (!user?.buyerId) {
+      console.log('⚠️ Cannot fetch reviewable orders: buyerId not available', user);
+      return;
+    }
     
     try {
       const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-      const response = await fetch(
-        API_CONFIG.ENDPOINTS.REVIEWS.GET_REVIEWABLE_ORDERS(user.buyer_id),
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+      const url = API_CONFIG.ENDPOINTS.REVIEWS.GET_REVIEWABLE_ORDERS(user.buyerId);
+      
+      console.log('📝 Fetching reviewable orders for buyer:', user.buyerId);
+      console.log('🔗 URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
-      );
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch reviewable orders');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to fetch reviewable orders:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to fetch reviewable orders');
       }
 
       const data = await response.json();
+      console.log('✅ Reviewable orders fetched:', data.orders?.length || 0, 'orders');
+      console.log('Orders data:', data.orders);
+      
       setReviewableOrders(data.orders || []);
     } catch (err) {
       console.error('Fetch reviewable orders error:', err);
+      showNotification('Failed to load reviewable orders', 'error');
     }
-  }, [user?.buyer_id]);
+  }, [user]);
 
   // Check if user is logged in and fetch user data
   useEffect(() => {
@@ -251,6 +268,16 @@ const BuyerDashboard = () => {
   const handleReviewSubmit = async (reviewData) => {
     try {
       const token = localStorage.getItem('authToken');
+      
+      // Validate review data
+      if (!reviewData.orderId || !reviewData.farmerId || !reviewData.rating) {
+        throw new Error('Missing required review information');
+      }
+
+      if (reviewData.rating < 1 || reviewData.rating > 5) {
+        throw new Error('Rating must be between 1 and 5 stars');
+      }
+
       const response = await fetch(API_CONFIG.ENDPOINTS.REVIEWS.CREATE, {
         method: 'POST',
         headers: {
@@ -260,12 +287,13 @@ const BuyerDashboard = () => {
         body: JSON.stringify(reviewData)
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit review');
+        throw new Error(data.error || 'Failed to submit review');
       }
 
-      showNotification('Review submitted successfully!', 'success');
+      showNotification('Review submitted successfully! 🎉', 'success');
       
       // Refresh reviewable orders
       await fetchReviewableOrders();
@@ -582,8 +610,10 @@ const BuyerDashboard = () => {
           setPendingOrder(null);
           setCart([]); // now clear cart
           showNotification('Payment confirmed — order completed! 🎉', 'success');
-          // Refresh orders list
-          if (activeTab === 'orders') fetchOrders();
+          // Always refresh orders list on payment success
+          fetchOrders();
+          // Switch to orders tab to show the completed order
+          setActiveTab('orders');
         } else if (status === 'failed' || data?.order?.status === 'cancelled') {
           clearInterval(paymentPollRef.current);
           paymentPollRef.current = null;
@@ -637,7 +667,10 @@ const BuyerDashboard = () => {
         if (paymentPollRef.current) { clearInterval(paymentPollRef.current); paymentPollRef.current = null; }
         setPendingOrder(null);
         setCart([]);
-        showNotification('Payment confirmed — order completed', 'success');
+        showNotification('Payment confirmed — order completed! 🎉', 'success');
+        // Refresh orders list and switch to orders tab
+        fetchOrders();
+        setActiveTab('orders');
       } else if (status === 'failed' || data?.order?.status === 'cancelled') {
         if (paymentPollRef.current) { clearInterval(paymentPollRef.current); paymentPollRef.current = null; }
         setPendingOrder(null);
@@ -744,6 +777,50 @@ const BuyerDashboard = () => {
   const getTotalCartValue = () => {
     return cart.reduce((total, item) => total + (parseFloat(item.price || 0) * item.quantity), 0);
   };
+
+  // Filter and sort orders
+  const getFilteredAndSortedOrders = () => {
+    let filtered = [...orders];
+
+    // Apply status filter
+    if (orderFilter !== 'all') {
+      filtered = filtered.filter(order => order.status === orderFilter);
+    }
+
+    // Apply sorting
+    switch (orderSortBy) {
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+        break;
+      case 'amount-high':
+        filtered.sort((a, b) => (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0));
+        break;
+      case 'amount-low':
+        filtered.sort((a, b) => (parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0));
+        break;
+      case 'newest':
+      default:
+        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+        break;
+    }
+
+    return filtered;
+  };
+
+  // Get displayed orders (with pagination)
+  const filteredOrders = getFilteredAndSortedOrders();
+  const displayedOrders = filteredOrders.slice(0, displayedOrdersCount);
+  const hasMoreOrders = displayedOrdersCount < filteredOrders.length;
+
+  // Load more orders
+  const loadMoreOrders = () => {
+    setDisplayedOrdersCount(prev => prev + ordersPerPage);
+  };
+
+  // Reset pagination when filter/sort changes
+  useEffect(() => {
+    setDisplayedOrdersCount(ordersPerPage);
+  }, [orderFilter, orderSortBy]);
 
   return (
     <div className="buyer-dashboard">
@@ -1103,17 +1180,11 @@ const BuyerDashboard = () => {
                 </div>
               </div>
 
-              {/* Error Message */}
-              {error && <div className="error-message">{error}</div>}
-
-              {/* Loading State */}
-              {isLoading && <div className="loading">Loading products...</div>}
-
               {/* Products Grid */}
               {isLoading ? (
                 <div className="loading-container">
                   <div className="loading-spinner"></div>
-                  <p>Loading fresh products...</p>
+                  <p>Loading products...</p>
                 </div>
               ) : error ? (
                 <div className="error-container">
@@ -1254,7 +1325,6 @@ const BuyerDashboard = () => {
             <div className="tab-content orders-tab">
               <div className="tab-header">
                 <h2>📦 My Orders</h2>
-                <p className="subtitle">View and track your order history</p>
               </div>
               
               {isLoadingOrders ? (
@@ -1277,14 +1347,66 @@ const BuyerDashboard = () => {
                   </div>
                 </div>
               ) : (
-                <div className="orders-list">
-                  {orders.map((order) => (
+                <>
+                  {/* Orders Filter and Sort Controls */}
+                  <div className="orders-controls">
+                    <div className="orders-filter-group">
+                      <label htmlFor="order-filter">Filter by Status:</label>
+                      <select 
+                        id="order-filter"
+                        className="order-filter-select"
+                        value={orderFilter}
+                        onChange={(e) => setOrderFilter(e.target.value)}
+                      >
+                        <option value="all">All Orders ({orders.length})</option>
+                        <option value="pending">Pending ({orders.filter(o => o.status === 'pending').length})</option>
+                        <option value="completed">Completed ({orders.filter(o => o.status === 'completed').length})</option>
+                        <option value="cancelled">Cancelled ({orders.filter(o => o.status === 'cancelled').length})</option>
+                      </select>
+                    </div>
+                    
+                    <div className="orders-sort-group">
+                      <label htmlFor="order-sort">Sort by:</label>
+                      <select 
+                        id="order-sort"
+                        className="order-sort-select"
+                        value={orderSortBy}
+                        onChange={(e) => setOrderSortBy(e.target.value)}
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="amount-high">Highest Amount</option>
+                        <option value="amount-low">Lowest Amount</option>
+                      </select>
+                    </div>
+                    
+                    {filteredOrders.length > 0 && (
+                      <div className="orders-count-info">
+                        Showing {displayedOrders.length} of {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </div>
+
+                  {filteredOrders.length === 0 ? (
+                    <div className="no-filtered-orders">
+                      <p>No orders found with the selected filter.</p>
+                      <button 
+                        className="clear-filter-btn"
+                        onClick={() => setOrderFilter('all')}
+                      >
+                        Clear Filter
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="orders-list">
+                        {displayedOrders.map((order) => (
                     <div key={order.id} className="order-card">
                       <div className="order-header">
                         <div>
                           <h3>Order #{order.id}</h3>
                           <p className="order-date">
-                            {new Date(order.orderDate).toLocaleDateString('en-US', {
+                            {new Date(order.date).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'long',
                               day: 'numeric'
@@ -1296,27 +1418,35 @@ const BuyerDashboard = () => {
                         </span>
                       </div>
                       <div className="order-details">
-                        <p><strong>Total Amount:</strong> KES {parseFloat(order.totalAmount).toFixed(2)}</p>
+                        <p><strong>Total Amount:</strong> KES {parseFloat(order.amount || 0).toFixed(2)}</p>
+                        <p><strong>Items:</strong> {order.itemCount || 0} item{order.itemCount !== 1 ? 's' : ''}</p>
+                        <p><strong>Payment Status:</strong> <span className={`payment-status status-${order.paymentStatus}`}>{order.paymentStatus || 'pending'}</span></p>
+                        {order.paymentMethod && (
+                          <p><strong>Payment Method:</strong> {order.paymentMethod}</p>
+                        )}
                         <p><strong>Delivery Address:</strong> {order.deliveryAddress}</p>
                         {order.deliveryDate && (
                           <p><strong>Delivery Date:</strong> {new Date(order.deliveryDate).toLocaleDateString()}</p>
                         )}
                       </div>
-                      {order.items && order.items.length > 0 && (
-                        <div className="order-items">
-                          <h4>Items:</h4>
-                          <ul>
-                            {order.items.map((item, idx) => (
-                              <li key={idx}>
-                                {item.productName} - {item.quantity} {item.unit} @ KES {parseFloat(item.price).toFixed(2)}
-                              </li>
-                            ))}
-                          </ul>
+                    </div>
+                        ))}
+                      </div>
+
+                      {/* Load More Button */}
+                      {hasMoreOrders && (
+                        <div className="load-more-container">
+                          <button 
+                            className="load-more-btn"
+                            onClick={loadMoreOrders}
+                          >
+                            Load More Orders ({filteredOrders.length - displayedOrdersCount} remaining)
+                          </button>
                         </div>
                       )}
-                    </div>
-                  ))}
-                </div>
+                    </>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1382,7 +1512,7 @@ const BuyerDashboard = () => {
                       </div>
 
                       <div className="order-amount">
-                        <strong>Total:</strong> KES {parseFloat(order.totalAmount).toFixed(2)}
+                        <strong>Total:</strong> KES {parseFloat(order.totalAmount || 0).toFixed(2)}
                       </div>
 
                       {order.hasReview ? (
@@ -1976,7 +2106,7 @@ const BuyerDashboard = () => {
                 ) : (
                   <>
                     <button className="modal-cancel-btn" onClick={() => setShowCheckoutModal(false)}>Close</button>
-                    <button className="modal-add-to-cart-btn" onClick={() => { setShowCheckoutModal(false); navigate('/orders'); }}>View Orders</button>
+                    <button className="modal-add-to-cart-btn" onClick={() => { setShowCheckoutModal(false); setActiveTab('orders'); }}>View Orders</button>
                   </>
                 )}
               </div>
