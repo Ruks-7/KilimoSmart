@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import './CameraCapture.css';
+import './Styling/CameraCapture.css';
 
 const CameraCapture = ({ onCapture, onClose, maxPhotos = 5 }) => {
   const [capturedPhotos, setCapturedPhotos] = useState([]);

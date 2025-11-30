@@ -9,6 +9,7 @@ import RoleSwitcher from '../../components/RoleSwitcher';
 import OnboardingTour from '../../components/OnboardingTour';
 import HelpButton from '../../components/HelpButton';
 
+
 const BuyerDashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -56,6 +57,9 @@ const BuyerDashboard = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedOrderForReview, setSelectedOrderForReview] = useState(null);
   const [reviewableOrders, setReviewableOrders] = useState([]);
+  
+  // Receipt state
+
   
   // Orders pagination and filtering
   const [displayedOrdersCount, setDisplayedOrdersCount] = useState(10);
@@ -608,8 +612,30 @@ const BuyerDashboard = () => {
           paymentPollRef.current = null;
           setIsCheckingPayment(false);
           setPendingOrder(null);
+          
+          // Send receipt email
+          const paidOrder = data?.order;
+          if (paidOrder) {
+            try {
+              const token = localStorage.getItem('authToken');
+              await fetch(API_CONFIG.ENDPOINTS.BUYER.SEND_RECEIPT, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  orderId: paidOrder.order_id,
+                  items: cart
+                })
+              });
+            } catch (err) {
+              console.error('Failed to send receipt email:', err);
+            }
+          }
+          
           setCart([]); // now clear cart
-          showNotification('Payment confirmed — order completed! 🎉', 'success');
+          showNotification('Payment confirmed — order completed! 🎉 Receipt sent to your email.', 'success');
           // Always refresh orders list on payment success
           fetchOrders();
           // Switch to orders tab to show the completed order
@@ -2126,6 +2152,9 @@ const BuyerDashboard = () => {
           onSubmit={handleReviewSubmit}
         />
       )}
+
+      {/* Digital Receipt Modal */}
+
 
       {/* Onboarding Tour */}
       <OnboardingTour userType="buyer" />

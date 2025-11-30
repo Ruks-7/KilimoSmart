@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Joyride, { STATUS } from 'react-joyride';
-import './OnboardingTour.css';
+import './Styling/OnboardingTour.css';
 
 const OnboardingTour = ({ userType = 'buyer' }) => {
   const [runTour, setRunTour] = useState(false);

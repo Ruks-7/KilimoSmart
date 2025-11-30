@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query } = require('../config/database');
 const { authenticateToken, requireBuyer } = require('../middleware/auth');
+const { sendPurchaseReceipt } = require('../utils/emailService');
 
 // Apply authentication middleware to all buyer routes
 router.use(authenticateToken);
@@ -671,6 +672,95 @@ router.put('/profile', async (req, res) => {
       success: false,
       message: 'Failed to update profile',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+});
+
+/**
+ * POST /api/buyer/send-receipt-email
+ * Send purchase receipt email to buyer after payment
+ */
+router.post('/send-receipt-email', async (req, res) => {
+  try {
+    const { orderId, items } = req.body;
+    const buyerId = req.user.buyerId;
+
+    if (!orderId || !items || !Array.isArray(items)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: orderId, items'
+      });
+    }
+
+    // Get buyer details
+    const buyerResult = await query(
+      `SELECT b.buyer_id, u.email, u.first_name, u.phone_number, b.address
+       FROM BUYER b
+       JOIN "USER" u ON b.user_id = u.user_id
+       WHERE b.buyer_id = $1`,
+      [buyerId]
+    );
+
+    if (buyerResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Buyer not found'
+      });
+    }
+
+    const buyer = buyerResult.rows[0];
+
+    // Get order details
+    const orderResult = await query(
+      `SELECT o.order_id, o.order_date, o.total_amount, o.delivery_address, 
+              o.payment_method, o.farmer_id, f.farm_name
+       FROM ORDERS o
+       LEFT JOIN FARMER f ON o.farmer_id = f.farmer_id
+       WHERE o.order_id = $1 AND o.buyer_id = $2`,
+      [orderId, buyerId]
+    );
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const order = orderResult.rows[0];
+
+    // Prepare receipt data
+    const receiptData = {
+      email: buyer.email,
+      buyerName: buyer.first_name || 'Valued Customer',
+      orderId: order.order_id,
+      orderDate: order.order_date,
+      items: items.map(item => ({
+        productName: item.productName || item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        pricePerUnit: item.price_per_unit || item.pricePerUnit || item.price,
+        subtotal: (item.quantity * (item.price_per_unit || item.pricePerUnit || item.price)).toFixed(2)
+      })),
+      totalAmount: order.total_amount || items.reduce((sum, item) => sum + (item.quantity * (item.price_per_unit || item.pricePerUnit || item.price)), 0),
+      deliveryAddress: order.delivery_address || buyer.address,
+      paymentMethod: order.payment_method || 'M-Pesa',
+      farmerName: order.farm_name || 'Our Farmer'
+    };
+
+    // Send receipt email
+    await sendPurchaseReceipt(receiptData);
+
+    res.json({
+      success: true,
+      message: 'Receipt email sent successfully'
+    });
+  } catch (error) {
+    console.error('Send receipt email error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send receipt email',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

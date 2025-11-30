@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaQuestionCircle, FaTimes, FaBook, FaPlay, FaEnvelope } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import './HelpButton.css';
+import './Styling/HelpButton.css';
 
 const HelpButton = ({ onRestartTour }) => {
   const [isOpen, setIsOpen] = useState(false);

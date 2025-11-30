@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './CameraCapture.css'; // Reuse existing component styles
+import './Styling/ContactFarmerButton.css'; // Reuse existing component styles
 import API_CONFIG from '../config/api';
 
 const ContactFarmerButton = ({ farmerId, farmerName, productName, onConversationCreated }) => {

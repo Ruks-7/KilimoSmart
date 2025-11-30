@@ -41,6 +41,7 @@ const API_ENDPOINTS = {
     ADD_TO_CART: `${API_BASE_URL}/api/buyer/cart/add`,
     REMOVE_FROM_CART: `${API_BASE_URL}/api/buyer/cart/remove`,
     UPDATE_CART: `${API_BASE_URL}/api/buyer/cart/update`,
+    SEND_RECEIPT: `${API_BASE_URL}/api/buyer/send-receipt-email`,
   },
   
   // Farmer endpoints

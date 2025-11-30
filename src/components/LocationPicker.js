@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents, Circle } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useLocation } from '../hooks/useLocation';
-import './LocationPicker.css';
+import './Styling/LocationPicker.css';
 
 // Fix Leaflet icon issue
 delete L.Icon.Default.prototype._getIconUrl;

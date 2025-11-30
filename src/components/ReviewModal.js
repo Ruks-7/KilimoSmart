@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './ReviewModal.css';
+import './Styling/ReviewModal.css';
 
 const ReviewModal = ({ order, onClose, onSubmit }) => {
   const [rating, setRating] = useState(0);

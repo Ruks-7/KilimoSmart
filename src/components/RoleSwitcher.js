@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useRole } from '../contexts/RoleContext';
-import './RoleSwitcher.css';
+import './Styling/RoleSwitcher.css';
 
 const RoleSwitcher = () => {
   const { 

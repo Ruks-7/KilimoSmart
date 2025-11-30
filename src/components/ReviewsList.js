@@ -1,5 +1,5 @@
 import React from 'react';
-import './ReviewsList.css';
+import './Styling/ReviewsList.css';
 
 const ReviewsList = ({ reviews, stats }) => {
   const renderStars = (rating) => {
