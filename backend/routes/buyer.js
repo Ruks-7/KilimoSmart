@@ -379,13 +379,14 @@ router.get('/orders', async (req, res) => {
         o.delivery_date as "deliveryDate",
         o.status,
         o.payment_status as "paymentStatus",
-        o.payment_method as "paymentMethod",
+        p.payment_method as "paymentMethod",
         o.notes,
         COUNT(oi.order_item_id) as "itemCount"
       FROM "ORDER" o
       LEFT JOIN ORDER_ITEMS oi ON o.order_id = oi.order_id
+      LEFT JOIN PAYMENT p ON o.order_id = p.order_id
       WHERE o.buyer_id = $1
-      GROUP BY o.order_id
+      GROUP BY o.order_id, p.payment_method
       ORDER BY o.order_date DESC`,
       [buyerId]
     );

@@ -553,13 +553,18 @@ const BuyerDashboard = () => {
 
   // Payment polling: check order payment status until it becomes paid/failed
   const paymentPollRef = useRef(null);
+  const pollAttemptsRef = useRef(0);
   const startPaymentPolling = (orderId) => {
     if (!orderId) return;
     // avoid multiple intervals
     if (paymentPollRef.current) return;
     setIsCheckingPayment(true);
-    paymentPollRef.current = setInterval(async () => {
+    pollAttemptsRef.current = 0;
+
+    // Function to check payment status
+    const checkPaymentStatus = async () => {
       try {
+        pollAttemptsRef.current += 1;
         const token = localStorage.getItem('authToken');
         const resp = await fetch(`${API_CONFIG.ENDPOINTS.BUYER.ORDERS}/${orderId}`, {
           method: 'GET',
@@ -568,6 +573,7 @@ const BuyerDashboard = () => {
         if (!resp.ok) return;
         const data = await resp.json().catch(() => ({}));
         const status = data?.order?.paymentStatus || data?.order?.payment_status || null;
+        
         if (status === 'paid') {
           // Payment confirmed
           clearInterval(paymentPollRef.current);
@@ -575,18 +581,33 @@ const BuyerDashboard = () => {
           setIsCheckingPayment(false);
           setPendingOrder(null);
           setCart([]); // now clear cart
-          showNotification('Payment confirmed — order completed', 'success');
+          showNotification('Payment confirmed — order completed! 🎉', 'success');
+          // Refresh orders list
+          if (activeTab === 'orders') fetchOrders();
         } else if (status === 'failed' || data?.order?.status === 'cancelled') {
           clearInterval(paymentPollRef.current);
           paymentPollRef.current = null;
           setIsCheckingPayment(false);
           setPendingOrder(null);
           showNotification('Payment failed or order cancelled. Your cart was not cleared.', 'error');
+        } else if (pollAttemptsRef.current >= 120) {
+          // Stop polling after 2 minutes
+          clearInterval(paymentPollRef.current);
+          paymentPollRef.current = null;
+          setIsCheckingPayment(false);
+          showNotification('Payment check timeout. Click "Check Payment Now" to verify manually.', 'info');
         }
       } catch (e) {
         // ignore poll errors
+        console.error('Payment polling error:', e);
       }
-    }, 5000); // poll every 5s
+    };
+
+    // Check immediately on start
+    checkPaymentStatus();
+
+    // Poll every 1 second for faster response
+    paymentPollRef.current = setInterval(checkPaymentStatus, 1000);
   };
 
   // Stop polling on unmount
@@ -1521,14 +1542,64 @@ const BuyerDashboard = () => {
               </div>
               {/* Pending order banner */}
               {pendingOrder && (
-                <div className="pending-banner">
-                  <p>
-                    You have a pending payment for order <strong>#{pendingOrder.orderId}</strong>. Your items are reserved for a short time.
-                    Use "Check Payment Now" to verify or "Cancel Order" to release the reservation.
-                  </p>
-                  <div className="pending-actions">
-                    <button className="check-payment-btn" onClick={checkPaymentNow} disabled={isCheckingPayment}>{isCheckingPayment ? 'Checking...' : 'Check Payment Now'}</button>
-                    <button className="cancel-order-btn" onClick={cancelPendingOrder}>Cancel Order</button>
+                <div className="pending-banner" style={{
+                  background: 'linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%)',
+                  border: '2px solid #ffc107',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  marginBottom: '20px',
+                  boxShadow: '0 4px 12px rgba(255, 193, 7, 0.2)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    {isCheckingPayment && (
+                      <span style={{ 
+                        display: 'inline-block', 
+                        width: '20px', 
+                        height: '20px', 
+                        border: '3px solid #856404', 
+                        borderTopColor: 'transparent', 
+                        borderRadius: '50%', 
+                        animation: 'spin 0.8s linear infinite',
+                        flexShrink: 0,
+                        marginTop: '2px'
+                      }}></span>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, color: '#856404', fontWeight: 500, fontSize: '1rem' }}>
+                        {isCheckingPayment ? (
+                          <>
+                            <strong>⚡ Checking payment status...</strong> Order <strong>#{pendingOrder.orderId}</strong> - Attempt {pollAttemptsRef.current}
+                          </>
+                        ) : (
+                          <>
+                            You have a pending payment for order <strong>#{pendingOrder.orderId}</strong>. Your items are reserved for a short time.
+                            Use "Check Payment Now" to verify or "Cancel Order" to release the reservation.
+                          </>
+                        )}
+                      </p>
+                      {isCheckingPayment && (
+                        <p style={{ margin: '8px 0 0 0', color: '#856404', fontSize: '0.875rem' }}>
+                          ✓ Automatically checking every second. You'll be notified when payment is confirmed.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="pending-actions" style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
+                    <button 
+                      className="check-payment-btn" 
+                      onClick={checkPaymentNow} 
+                      disabled={isCheckingPayment}
+                      style={{ opacity: isCheckingPayment ? 0.7 : 1 }}
+                    >
+                      {isCheckingPayment ? '⏳ Checking...' : '🔄 Check Payment Now'}
+                    </button>
+                    <button 
+                      className="cancel-order-btn" 
+                      onClick={cancelPendingOrder}
+                      disabled={isCheckingPayment}
+                    >
+                      Cancel Order
+                    </button>
                   </div>
                 </div>
               )}
@@ -1854,7 +1925,24 @@ const BuyerDashboard = () => {
 
                 <div className="detail-item">
                   <span className="detail-label">Payment Status</span>
-                  <span className="detail-value">{pendingOrder ? 'Pending (awaiting confirmation)' : ((stkResponse?.ResponseCode ?? stkResponse?.responseCode) ? (stkResponse?.ResponseCode ?? stkResponse?.responseCode) : 'Pending')}</span>
+                  <span className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {pendingOrder ? (
+                      <>
+                        {isCheckingPayment && (
+                          <span style={{ 
+                            display: 'inline-block', 
+                            width: '12px', 
+                            height: '12px', 
+                            border: '2px solid #004a2f', 
+                            borderTopColor: 'transparent', 
+                            borderRadius: '50%', 
+                            animation: 'spin 0.8s linear infinite' 
+                          }}></span>
+                        )}
+                        <span>Checking payment... ({pollAttemptsRef.current > 0 ? `Attempt ${pollAttemptsRef.current}` : 'Starting'})</span>
+                      </>
+                    ) : ((stkResponse?.ResponseCode ?? stkResponse?.responseCode) ? (stkResponse?.ResponseCode ?? stkResponse?.responseCode) : 'Pending')}
+                  </span>
                 </div>
 
                 {stkResponse?.CustomerMessage && (
