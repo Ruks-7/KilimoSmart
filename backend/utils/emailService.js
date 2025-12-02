@@ -312,22 +312,27 @@ async function sendPurchaseReceipt(receiptData) {
 
   // Format order date safely
   let formattedDate;
+  let orderYear;
   try {
-    formattedDate = new Date(orderDate).toLocaleString('en-US', {
+    const orderDateObj = new Date(orderDate);
+    formattedDate = orderDateObj.toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
+    orderYear = orderDateObj.getFullYear();
   } catch (e) {
-    formattedDate = new Date().toLocaleString('en-US', {
+    const now = new Date();
+    formattedDate = now.toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
+    orderYear = now.getFullYear();
   }
 
   // Generate items HTML with safe number parsing
@@ -514,12 +519,21 @@ async function sendPurchaseReceipt(receiptData) {
             <div class="receipt-header">
               <span class="success-badge">✓ PAYMENT CONFIRMED</span>
               <h2>Order #${orderId}</h2>
-              <p style="color: #666; margin: 5px 0;">Date: ${formattedDate}</p>
+              <p style="color: #666; margin: 5px 0;">Order Date: ${formattedDate}</p>
+              <p style="color: #999; margin: 5px 0; font-size: 12px;">Reference: KS-${orderId}-${orderYear}</p>
             </div>
 
             <div class="order-info">
               <div class="order-info-item">
-                <div class="order-info-label">Buyer Name</div>
+                <div class="order-info-label">Order Number</div>
+                <div class="order-info-value"><strong>#${orderId}</strong></div>
+              </div>
+              <div class="order-info-item">
+                <div class="order-info-label">Order Date</div>
+                <div class="order-info-value">${formattedDate}</div>
+              </div>
+              <div class="order-info-item">
+                <div class="order-info-label">Buyer</div>
                 <div class="order-info-value">${buyerName}</div>
               </div>
               <div class="order-info-item">
