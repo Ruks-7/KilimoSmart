@@ -671,8 +671,8 @@ const BuyerDashboard = () => {
           setIsCheckingPayment(false);
           setPendingOrder(null);
           
-          // Send receipt email - use pendingOrder.orderId as backup since paidOrder might not have order_id
-          const orderIdForReceipt = data?.order?.order_id || data?.order?.orderId || pendingOrder?.orderId;
+          // Send receipt email 
+          const orderIdForReceipt = orderId || data?.order?.id || data?.order?.order_id || data?.order?.orderId || pendingOrder?.orderId;
           const cartSnapshot = [...cart]; // Snapshot cart before clearing
           
           if (orderIdForReceipt && cartSnapshot.length > 0) {
