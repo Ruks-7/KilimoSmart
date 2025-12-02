@@ -415,9 +415,10 @@ input, select, textarea {
   max-width: var(--max-width);
   margin: 0 auto;
   width: 100%;
-  min-height: calc(100vh - var(--header-height));
+  min-height: calc(100vh - var(--header-height) - 80px); 
   gap: var(--space-xl);
   padding: var(--space-xl);
+  flex: 1;
 }
 
 /* Sidebar Navigation */
@@ -427,9 +428,12 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  height: calc(100vh - var(--header-height));
+  height: fit-content;
   min-height: 400px;
-  max-height: calc(100vh - var(--header-height));
+  max-height: calc(100vh - var(--header-height) - 100px);
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-xl));
+  overflow-y: auto;
 }
 
 /* Navigation menu container */
@@ -607,6 +611,23 @@ input, select, textarea {
 .filter-toggle-btn,
 .close-filters-btn {
   display: none;
+}
+
+/* Dashboard Footer */
+.dashboard-footer {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: white;
+  text-align: center;
+  padding: var(--space-lg) var(--space-xl);
+  margin-top: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-footer p {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.9;
 }
 
 /* Content Area */
@@ -2284,6 +2305,7 @@ input, select, textarea {
     background: white;
     z-index: 1000;
     padding: var(--space-lg);
+    padding-bottom: 100px; 
     overflow-y: auto;
     transition: var(--transition-slow);
     box-shadow: var(--shadow-xl);
@@ -2301,6 +2323,13 @@ input, select, textarea {
   /* Filter panel mobile controls */
   .filter-panel {
     margin-top: var(--space-md);
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-lg);
+  }
+
+  .filter-panel.show {
+    position: relative;
+    z-index: 10;
   }
 
   .filter-toggle-btn {
@@ -2328,6 +2357,20 @@ input, select, textarea {
     font-size: 1.5rem;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Apply filters button mobile fix */
+  .apply-filters-btn {
+    position: relative;
+    z-index: 5;
+    margin-bottom: var(--space-lg);
+  }
+
+  /* Dashboard footer mobile */
+  .dashboard-footer {
+    position: relative;
+    z-index: 1;
+    padding: var(--space-md);
   }
 
   /* Content adjustments */

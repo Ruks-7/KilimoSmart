@@ -342,11 +342,63 @@ const BuyerDashboard = () => {
     navigate('/login');
   };
 
+  // Filter and sort products based on all selectedFilters
   const filteredProducts = products.filter(product => {
+    // Search filter
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !filterCategory || product.category === filterCategory;
-    return matchesSearch && matchesCategory;
+    
+    // Category filter (use selectedFilters.category)
+    const matchesCategory = !selectedFilters.category || 
+      product.category?.toLowerCase() === selectedFilters.category.toLowerCase();
+    
+    // Location filter (match county/location)
+    const matchesLocation = !selectedFilters.location || 
+      product.location?.toLowerCase().includes(selectedFilters.location.toLowerCase()) ||
+      product.county?.toLowerCase().includes(selectedFilters.location.toLowerCase()) ||
+      product.farmerLocation?.toLowerCase().includes(selectedFilters.location.toLowerCase());
+    
+    // Price range filter
+    let matchesPriceRange = true;
+    if (selectedFilters.priceRange) {
+      const price = parseFloat(product.price) || 0;
+      switch (selectedFilters.priceRange) {
+        case '0-500':
+          matchesPriceRange = price <= 500;
+          break;
+        case '500-1000':
+          matchesPriceRange = price > 500 && price <= 1000;
+          break;
+        case '1000-5000':
+          matchesPriceRange = price > 1000 && price <= 5000;
+          break;
+        case '5000-10000':
+          matchesPriceRange = price > 5000 && price <= 10000;
+          break;
+        case '10000+':
+          matchesPriceRange = price > 10000;
+          break;
+        default:
+          matchesPriceRange = true;
+      }
+    }
+    
+    return matchesSearch && matchesCategory && matchesLocation && matchesPriceRange;
+  }).sort((a, b) => {
+    // Sort products based on selectedFilters.sortBy
+    switch (selectedFilters.sortBy) {
+      case 'price-low':
+        return (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0);
+      case 'price-high':
+        return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0);
+      case 'popular':
+        return (b.totalSales || 0) - (a.totalSales || 0);
+      case 'rating':
+        return (parseFloat(b.rating) || 0) - (parseFloat(a.rating) || 0);
+      case 'newest':
+      default:
+        return new Date(b.createdAt || b.created_at || 0) - new Date(a.createdAt || a.created_at || 0);
+    }
   });
 
   const handleAddToCart = (product) => {
@@ -1084,33 +1136,82 @@ const BuyerDashboard = () => {
                   <option value="legumes">Legumes</option>
                   <option value="fruits">Fruits</option>
                   <option value="vegetables">Vegetables</option>
+                  <option value="dairy">Dairy</option>
+                  <option value="poultry">Poultry</option>
+                  <option value="livestock">Livestock</option>
                   <option value="other">Other</option>
                 </select>
               </div>
               
               <div className="filter-group">
-                <label>Price Range</label>
+                <label>Price Range (KES)</label>
                 <select
                   value={selectedFilters.priceRange}
                   onChange={(e) => setSelectedFilters({...selectedFilters, priceRange: e.target.value})}
                 >
                   <option value="">All Prices</option>
-                  <option value="0-1000">Under KES 1,000</option>
-                  <option value="1000-5000">KES 1,000 - 5,000</option>
-                  <option value="5000+">Over KES 5,000</option>
+                  <option value="0-500">Under 500</option>
+                  <option value="500-1000">500 - 1,000</option>
+                  <option value="1000-5000">1,000 - 5,000</option>
+                  <option value="5000-10000">5,000 - 10,000</option>
+                  <option value="10000+">Over 10,000</option>
                 </select>
               </div>
 
               <div className="filter-group">
-                <label>Location</label>
+                <label>County</label>
                 <select
                   value={selectedFilters.location}
                   onChange={(e) => setSelectedFilters({...selectedFilters, location: e.target.value})}
                 >
-                  <option value="">All Locations</option>
-                  <option value="nairobi">Nairobi</option>
-                  <option value="mombasa">Mombasa</option>
+                  <option value="">All Counties</option>
+                  <option value="baringo">Baringo</option>
+                  <option value="bomet">Bomet</option>
+                  <option value="bungoma">Bungoma</option>
+                  <option value="busia">Busia</option>
+                  <option value="elgeyo-marakwet">Elgeyo-Marakwet</option>
+                  <option value="embu">Embu</option>
+                  <option value="garissa">Garissa</option>
+                  <option value="homa bay">Homa Bay</option>
+                  <option value="isiolo">Isiolo</option>
+                  <option value="kajiado">Kajiado</option>
+                  <option value="kakamega">Kakamega</option>
+                  <option value="kericho">Kericho</option>
+                  <option value="kiambu">Kiambu</option>
+                  <option value="kilifi">Kilifi</option>
+                  <option value="kirinyaga">Kirinyaga</option>
+                  <option value="kisii">Kisii</option>
                   <option value="kisumu">Kisumu</option>
+                  <option value="kitui">Kitui</option>
+                  <option value="kwale">Kwale</option>
+                  <option value="laikipia">Laikipia</option>
+                  <option value="lamu">Lamu</option>
+                  <option value="machakos">Machakos</option>
+                  <option value="makueni">Makueni</option>
+                  <option value="mandera">Mandera</option>
+                  <option value="marsabit">Marsabit</option>
+                  <option value="meru">Meru</option>
+                  <option value="migori">Migori</option>
+                  <option value="mombasa">Mombasa</option>
+                  <option value="murang'a">Murang'a</option>
+                  <option value="nairobi">Nairobi</option>
+                  <option value="nakuru">Nakuru</option>
+                  <option value="nandi">Nandi</option>
+                  <option value="narok">Narok</option>
+                  <option value="nyamira">Nyamira</option>
+                  <option value="nyandarua">Nyandarua</option>
+                  <option value="nyeri">Nyeri</option>
+                  <option value="samburu">Samburu</option>
+                  <option value="siaya">Siaya</option>
+                  <option value="taita-taveta">Taita-Taveta</option>
+                  <option value="tana river">Tana River</option>
+                  <option value="tharaka-nithi">Tharaka-Nithi</option>
+                  <option value="trans-nzoia">Trans-Nzoia</option>
+                  <option value="turkana">Turkana</option>
+                  <option value="uasin gishu">Uasin Gishu</option>
+                  <option value="vihiga">Vihiga</option>
+                  <option value="wajir">Wajir</option>
+                  <option value="west pokot">West Pokot</option>
                 </select>
               </div>
 
@@ -1124,6 +1225,7 @@ const BuyerDashboard = () => {
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
                   <option value="popular">Most Popular</option>
+                  <option value="rating">Highest Rated</option>
                 </select>
               </div>
 

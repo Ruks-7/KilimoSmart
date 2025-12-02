@@ -713,8 +713,8 @@ router.post('/send-receipt-email', async (req, res) => {
     // Get order details
     const orderResult = await query(
       `SELECT o.order_id, o.order_date, o.total_amount, o.delivery_address, 
-              o.payment_method, o.farmer_id, f.farm_name
-       FROM ORDERS o
+              o.farmer_id, f.farm_name
+       FROM "ORDER" o
        LEFT JOIN FARMER f ON o.farmer_id = f.farmer_id
        WHERE o.order_id = $1 AND o.buyer_id = $2`,
       [orderId, buyerId]

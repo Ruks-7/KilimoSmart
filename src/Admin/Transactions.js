@@ -3,6 +3,39 @@ import AdminNavbar from './AdminNavbar';
 import { API_CONFIG, apiCall } from '../config/api';
 import './Styling/admin.css';
 
+// Helper function to safely format dates
+const formatDate = (dateValue, options = {}) => {
+	if (!dateValue) return 'N/A';
+	
+	try {
+		const date = new Date(dateValue);
+		// Check if date is valid
+		if (isNaN(date.getTime())) return 'N/A';
+		
+		const defaultOptions = { 
+			month: 'short', 
+			day: 'numeric', 
+			year: 'numeric',
+			...options
+		};
+		
+		return date.toLocaleDateString('en-US', defaultOptions);
+	} catch (error) {
+		console.error('Date formatting error:', error);
+		return 'N/A';
+	}
+};
+
+const formatDateTime = (dateValue) => {
+	return formatDate(dateValue, {
+		month: 'short', 
+		day: 'numeric', 
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+};
+
 const Transactions = () => {
 	const [payments, setPayments] = useState([]);
 	const [orders, setOrders] = useState([]);
@@ -43,9 +76,14 @@ const Transactions = () => {
 		setDetailLoading(true);
 		setSelectedOrder(null);
 		try {
+			// Use the transactions/:id endpoint
 			const url = `${API_CONFIG.ENDPOINTS.ADMIN.TRANSACTIONS}/${orderId}`;
 			const res = await apiCall(url);
-			setSelectedOrder(res);
+			if (res.success) {
+				setSelectedOrder(res);
+			} else {
+				console.error('Failed to load order details:', res.message);
+			}
 		} catch (err) {
 			console.error('Failed to load order details', err);
 		} finally {
@@ -55,7 +93,11 @@ const Transactions = () => {
 
 	const filteredOrders = statusFilter === 'all' 
 		? orders 
-		: orders.filter(o => o.status?.toLowerCase() === statusFilter);
+		: orders.filter(o => {
+			const orderStatus = o.status?.toLowerCase();
+			const paymentStatus = o.payment_status?.toLowerCase();
+			return orderStatus === statusFilter || paymentStatus === statusFilter;
+		});
 
 	const filteredPayments = statusFilter === 'all' 
 		? payments 
@@ -192,12 +234,12 @@ const Transactions = () => {
 												</tr>
 											</thead>
 											<tbody>
-												{filteredPayments.map(p => (
-													<tr key={p.id}>
-														<td>
-															<span className="payment-id">#{String(p.id).padStart(4, '0')}</span>
-														</td>
-														<td>{new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+														{filteredPayments.map(p => (
+															<tr key={p.id}>
+																<td>
+																	<span className="payment-id">#{String(p.id).padStart(4, '0')}</span>
+																</td>
+																<td>{formatDateTime(p.date || p.created_at)}</td>
 														<td className="amount-cell">KSh {parseFloat(p.amount || 0).toLocaleString()}</td>
 														<td>
 															<span className="payment-method">M-Pesa</span>
@@ -244,7 +286,7 @@ const Transactions = () => {
 														<td>
 															<span className="order-id">#{String(o.id).padStart(4, '0')}</span>
 														</td>
-														<td>{new Date(o.created_at).toLocaleDateString()}</td>
+														<td>{formatDate(o.date || o.created_at)}</td>
 														<td>KSh {parseFloat(o.amount || 0).toLocaleString()}</td>
 														<td>
 															<span className={`status-badge status-${o.status?.toLowerCase()}`}>
@@ -348,13 +390,7 @@ const Transactions = () => {
 										<div className="detail-row">
 											<span className="detail-label">Order Date</span>
 											<span className="detail-value">
-												{new Date(selectedOrder.order.date).toLocaleDateString('en-US', { 
-													month: 'long', 
-													day: 'numeric', 
-													year: 'numeric',
-													hour: '2-digit',
-													minute: '2-digit'
-												})}
+												{formatDateTime(selectedOrder.order.date || selectedOrder.order.created_at || selectedOrder.order.createdAt)}
 											</span>
 										</div>
 									</div>

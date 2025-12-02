@@ -131,7 +131,27 @@ router.get('/transactions', async (req, res) => {
     }
 
     if (type === 'orders' || type === 'both') {
-      const o = await query(`SELECT o.order_id as id, o.buyer_id as "buyerId", o.farmer_id as "farmerId", o.order_date as date, o.total_amount as amount, o.status, o.payment_status as "paymentStatus" FROM "ORDER" o ORDER BY o.order_date DESC LIMIT $1 OFFSET $2`, [limit, offset]);
+      const o = await query(`
+        SELECT 
+          o.order_id as id, 
+          o.buyer_id as "buyerId", 
+          o.farmer_id as "farmerId", 
+          o.order_date as date, 
+          o.order_date as "created_at",
+          o.total_amount as amount, 
+          o.status, 
+          o.payment_status,
+          o.delivery_address,
+          u.first_name as "buyerName",
+          u.email as "buyerEmail",
+          f.farm_name as "farmerName"
+        FROM "ORDER" o
+        LEFT JOIN BUYER b ON o.buyer_id = b.buyer_id
+        LEFT JOIN "USER" u ON b.user_id = u.user_id
+        LEFT JOIN FARMER f ON o.farmer_id = f.farmer_id
+        ORDER BY o.order_date DESC 
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
       const oCount = await query('SELECT COUNT(*) as count FROM "ORDER"');
       orders = o.rows;
       orders._meta = { total: parseInt(oCount.rows[0].count), page, limit };
@@ -145,20 +165,97 @@ router.get('/transactions', async (req, res) => {
 });
 
 
-// GET /api/admin/orders/:id - order detail with items
-router.get('/orders/:id', async (req, res) => {
+// GET /api/admin/transactions/:id - order detail with items (alias for orders/:id)
+router.get('/transactions/:id', async (req, res) => {
   try {
     const orderId = req.params.id;
     const orderRes = await query(
-      `SELECT o.order_id as id, o.buyer_id as "buyerId", o.farmer_id as "farmerId", o.order_date as date, o.total_amount as amount, o.delivery_address as "deliveryAddress", o.status, o.payment_status as "paymentStatus", o.delivery_date as "deliveryDate"
-       FROM "ORDER" o WHERE o.order_id = $1`,
+      `SELECT 
+         o.order_id as id, 
+         o.buyer_id as "buyerId", 
+         o.farmer_id as "farmerId", 
+         o.order_date as date, 
+         o.total_amount as amount, 
+         o.delivery_address as "deliveryAddress", 
+         o.status, 
+         o.payment_status as "paymentStatus", 
+         o.delivery_date as "deliveryDate",
+         u.first_name as "buyerName",
+         u.email as "buyerEmail",
+         u.phone_number as "buyerPhone",
+         f.farm_name as "farmerName"
+       FROM "ORDER" o
+       LEFT JOIN BUYER b ON o.buyer_id = b.buyer_id
+       LEFT JOIN "USER" u ON b.user_id = u.user_id
+       LEFT JOIN FARMER f ON o.farmer_id = f.farmer_id
+       WHERE o.order_id = $1`,
       [orderId]
     );
 
     if (orderRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
 
     const itemsRes = await query(
-      `SELECT oi.order_item_id as id, oi.product_id as "productId", oi.quantity_ordered as quantity, oi.unit_price as unitPrice, oi.subtotal FROM ORDER_ITEMS oi WHERE oi.order_id = $1`,
+      `SELECT 
+         oi.order_item_id as id, 
+         oi.product_id as "productId", 
+         p.product_name as "productName",
+         oi.quantity_ordered as quantity, 
+         oi.unit_price as "unitPrice", 
+         oi.subtotal,
+         p.unit_of_measure as unit
+       FROM ORDER_ITEMS oi
+       LEFT JOIN PRODUCT p ON oi.product_id = p.product_id
+       WHERE oi.order_id = $1`,
+      [orderId]
+    );
+
+    return res.status(200).json({ success: true, order: orderRes.rows[0], items: itemsRes.rows });
+  } catch (error) {
+    console.error('Admin GET /transactions/:id error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch order details', error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+  }
+});
+
+// GET /api/admin/orders/:id - order detail with items
+router.get('/orders/:id', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const orderRes = await query(
+      `SELECT 
+         o.order_id as id, 
+         o.buyer_id as "buyerId", 
+         o.farmer_id as "farmerId", 
+         o.order_date as date, 
+         o.total_amount as amount, 
+         o.delivery_address as "deliveryAddress", 
+         o.status, 
+         o.payment_status as "paymentStatus", 
+         o.delivery_date as "deliveryDate",
+         u.first_name as "buyerName",
+         u.email as "buyerEmail",
+         f.farm_name as "farmerName"
+       FROM "ORDER" o
+       LEFT JOIN BUYER b ON o.buyer_id = b.buyer_id
+       LEFT JOIN "USER" u ON b.user_id = u.user_id
+       LEFT JOIN FARMER f ON o.farmer_id = f.farmer_id
+       WHERE o.order_id = $1`,
+      [orderId]
+    );
+
+    if (orderRes.rows.length === 0) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const itemsRes = await query(
+      `SELECT 
+         oi.order_item_id as id, 
+         oi.product_id as "productId", 
+         p.product_name as "productName",
+         oi.quantity_ordered as quantity, 
+         oi.unit_price as "unitPrice", 
+         oi.subtotal,
+         p.unit_of_measure as unit
+       FROM ORDER_ITEMS oi
+       LEFT JOIN PRODUCT p ON oi.product_id = p.product_id
+       WHERE oi.order_id = $1`,
       [orderId]
     );
 
