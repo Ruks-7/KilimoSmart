@@ -29,7 +29,10 @@ router.get('/products', async (req, res) => {
         p.harvest_date as "harvestDate",
         p.farmer_id as "farmerId",
         f.farm_name as "farmerName",
-        l.county as location,
+        COALESCE(l.county, l.subcounty, l.address_description) as location,
+        l.county,
+        l.subcounty,
+        l.address_description as "fullAddress",
         u.phone_number as "farmerPhone",
         pp.photo_url as "imageUrl"
       FROM PRODUCT p
@@ -685,10 +688,29 @@ router.post('/send-receipt-email', async (req, res) => {
     const { orderId, items } = req.body;
     const buyerId = req.user.buyerId;
 
-    if (!orderId || !items || !Array.isArray(items)) {
+    console.log('Receipt email request:', { orderId, itemsCount: items?.length, buyerId });
+
+    if (!orderId) {
+      console.error('Receipt email error: Missing orderId');
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: orderId, items'
+        message: 'Missing required field: orderId'
+      });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      console.error('Receipt email error: Missing or empty items array');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required field: items (must be a non-empty array)'
+      });
+    }
+
+    if (!buyerId) {
+      console.error('Receipt email error: Missing buyerId from auth');
+      return res.status(400).json({
+        success: false,
+        message: 'Buyer not authenticated'
       });
     }
 

@@ -352,11 +352,17 @@ const BuyerDashboard = () => {
     const matchesCategory = !selectedFilters.category || 
       product.category?.toLowerCase() === selectedFilters.category.toLowerCase();
     
-    // Location filter (match county/location)
+    // Location filter (match county/location) - normalize both sides for comparison
+    const normalizeCounty = (str) => str?.toLowerCase().trim().replace(/['-\s]/g, '') || '';
+    const selectedCounty = normalizeCounty(selectedFilters.location);
+    
+    // Priority: county field first, then location, then subcounty, then fullAddress
     const matchesLocation = !selectedFilters.location || 
-      product.location?.toLowerCase().includes(selectedFilters.location.toLowerCase()) ||
-      product.county?.toLowerCase().includes(selectedFilters.location.toLowerCase()) ||
-      product.farmerLocation?.toLowerCase().includes(selectedFilters.location.toLowerCase());
+      normalizeCounty(product.county) === selectedCounty ||
+      normalizeCounty(product.location) === selectedCounty ||
+      normalizeCounty(product.subcounty) === selectedCounty ||
+      normalizeCounty(product.fullAddress)?.includes(selectedCounty) ||
+      normalizeCounty(product.farmerLocation) === selectedCounty;
     
     // Price range filter
     let matchesPriceRange = true;
@@ -665,25 +671,49 @@ const BuyerDashboard = () => {
           setIsCheckingPayment(false);
           setPendingOrder(null);
           
-          // Send receipt email
-          const paidOrder = data?.order;
-          if (paidOrder) {
+          // Send receipt email - use pendingOrder.orderId as backup since paidOrder might not have order_id
+          const orderIdForReceipt = data?.order?.order_id || data?.order?.orderId || pendingOrder?.orderId;
+          const cartSnapshot = [...cart]; // Snapshot cart before clearing
+          
+          if (orderIdForReceipt && cartSnapshot.length > 0) {
             try {
               const token = localStorage.getItem('authToken');
-              await fetch(API_CONFIG.ENDPOINTS.BUYER.SEND_RECEIPT, {
+              // Map cart items to include all required fields for receipt
+              const receiptItems = cartSnapshot.map(item => ({
+                productName: item.name || item.productName,
+                name: item.name,
+                quantity: item.quantity,
+                unit: item.unit || 'units',
+                price: item.price,
+                pricePerUnit: item.price,
+                price_per_unit: item.price
+              }));
+              
+              console.log('Sending receipt email with:', { orderId: orderIdForReceipt, items: receiptItems });
+              
+              const receiptResponse = await fetch(API_CONFIG.ENDPOINTS.BUYER.SEND_RECEIPT, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                  orderId: paidOrder.order_id,
-                  items: cart
+                  orderId: orderIdForReceipt,
+                  items: receiptItems
                 })
               });
+              
+              if (!receiptResponse.ok) {
+                const errorData = await receiptResponse.json();
+                console.error('Receipt email failed:', errorData);
+              } else {
+                console.log('Receipt email sent successfully');
+              }
             } catch (err) {
               console.error('Failed to send receipt email:', err);
             }
+          } else {
+            console.warn('Cannot send receipt: missing orderId or cart is empty', { orderIdForReceipt, cartLength: cartSnapshot.length });
           }
           
           setCart([]); // now clear cart
