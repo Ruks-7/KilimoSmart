@@ -474,7 +474,9 @@ const FarmerDashboard = () => {
                 });
             }
             
-            if (selectedProduct) {
+            const isEditing = !!(selectedProduct && typeof selectedProduct === 'object' && selectedProduct.id);
+            
+            if (isEditing) {
                 formData.append('product_id', selectedProduct.id);
             }
             
@@ -489,8 +491,17 @@ const FarmerDashboard = () => {
                 });
             }
 
+            const httpMethod = isEditing ? 'PUT' : 'POST';
+            console.log('Submitting product:', { 
+                method: httpMethod, 
+                isEditing,
+                selectedProduct: selectedProduct?.id || null,
+                selectedProductFullObject: selectedProduct,
+                productName: productForm.productName 
+            });
+
             const response = await fetch(API_CONFIG.ENDPOINTS.FARMER.PRODUCTS, {
-                method: selectedProduct ? 'PUT' : 'POST',
+                method: httpMethod,
                 headers: {
                     'Authorization': `Bearer ${token}`
                     // Note: Don't set Content-Type header, browser will set it with boundary for multipart/form-data
@@ -500,12 +511,12 @@ const FarmerDashboard = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to add product');
+                throw new Error(errorData.message || `Failed to ${isEditing ? 'update' : 'add'} product`);
             }
 
             // Product added/updated successfully
             showNotificationMessage(
-                selectedProduct 
+                isEditing 
                     ? `${productForm.productName} updated successfully! 🎉` 
                     : `${productForm.productName} added successfully! 🎉`, 
                 'success'
@@ -922,6 +933,30 @@ const FarmerDashboard = () => {
                                     if (!isMobile) {
                                         showNotificationMessage('📱 Please use a mobile device to add products. Product photos are required and must be captured using your phone camera.', 'info');
                                     } else {
+                                        console.log('Opening Add Product modal - before reset:', { selectedProduct });
+                                        // Reset selectedProduct to ensure we're adding, not updating
+                                        setSelectedProduct(null);
+                                        // Reset form to empty values
+                                        setProductForm({
+                                            productName: '',
+                                            category: '',
+                                            quantity: '',
+                                            unit: 'kg',
+                                            pricePerUnit: '',
+                                            description: '',
+                                            isOrganic: false,
+                                            harvestDate: '',
+                                            expiryDate: '',
+                                            isPreorder: false,
+                                            expectedHarvestDate: '',
+                                            preorderDeadline: '',
+                                            preorderQuantity: '',
+                                            minPreorderQuantity: '',
+                                            isPerishable: false,
+                                            estimatedShelfLifeDays: ''
+                                        });
+                                        setProductPhotos([]);
+                                        console.log('Opening Add Product modal - after reset (state may not be updated yet)');
                                         setShowProductModal(true);
                                     }
                                 }}
@@ -995,7 +1030,29 @@ const FarmerDashboard = () => {
                                 {!searchQuery && filterCategory === 'all' && (
                                     <button 
                                         className="btn-primary"
-                                        onClick={() => setShowProductModal(true)}
+                                        onClick={() => {
+                                            setSelectedProduct(null);
+                                            setProductForm({
+                                                productName: '',
+                                                category: '',
+                                                quantity: '',
+                                                unit: 'kg',
+                                                pricePerUnit: '',
+                                                description: '',
+                                                isOrganic: false,
+                                                harvestDate: '',
+                                                expiryDate: '',
+                                                isPreorder: false,
+                                                expectedHarvestDate: '',
+                                                preorderDeadline: '',
+                                                preorderQuantity: '',
+                                                minPreorderQuantity: '',
+                                                isPerishable: false,
+                                                estimatedShelfLifeDays: ''
+                                            });
+                                            setProductPhotos([]);
+                                            setShowProductModal(true);
+                                        }}
                                     >
                                         + Add Your First Product
                                     </button>
@@ -1554,7 +1611,11 @@ const FarmerDashboard = () => {
 
             {/* Add Product Modal */}
             {showProductModal && (
-                <div className="modal-overlay" onClick={() => setShowProductModal(false)}>
+                <div className="modal-overlay" onClick={() => {
+                    setShowProductModal(false);
+                    setSelectedProduct(null);
+                    setProductPhotos([]);
+                }}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>
@@ -1565,6 +1626,7 @@ const FarmerDashboard = () => {
                                 onClick={() => {
                                     setShowProductModal(false);
                                     setSelectedProduct(null);
+                                    setProductPhotos([]);
                                 }}
                                 title="Close modal"
                             >

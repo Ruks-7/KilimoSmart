@@ -686,7 +686,8 @@ const BuyerDashboard = () => {
                 unit: item.unit || 'units',
                 price: item.price,
                 pricePerUnit: item.price,
-                price_per_unit: item.price
+                price_per_unit: item.price,
+                subtotal: (item.quantity * item.price).toFixed(2)
               }));
               
               console.log('Sending receipt email with:', { orderId: orderIdForReceipt, items: receiptItems });

@@ -783,7 +783,13 @@ router.post('/send-receipt-email', async (req, res) => {
     console.log('Sending receipt with data:', JSON.stringify(receiptData, null, 2));
 
     // Send receipt email
-    await sendPurchaseReceipt(receiptData);
+    try {
+      await sendPurchaseReceipt(receiptData);
+      console.log('✅ Receipt email sent successfully');
+    } catch (emailError) {
+      console.error('❌ Email service error:', emailError);
+      throw emailError; // Re-throw to be caught by outer catch
+    }
 
     res.json({
       success: true,
@@ -791,6 +797,7 @@ router.post('/send-receipt-email', async (req, res) => {
     });
   } catch (error) {
     console.error('Send receipt email error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to send receipt email',

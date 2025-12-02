@@ -609,11 +609,11 @@ router.put('/products', async (req, res) => {
     }
     if (harvest_date !== undefined) {
       updates.push(`harvest_date = $${paramCount++}`);
-      values.push(harvest_date);
+      values.push(harvest_date === '' ? null : harvest_date);
     }
     if (expiry_date !== undefined) {
       updates.push(`expiry_date = $${paramCount++}`);
-      values.push(expiry_date);
+      values.push(expiry_date === '' ? null : expiry_date);
     }
     if (is_organic !== undefined) {
       updates.push(`is_organic = $${paramCount++}`);
