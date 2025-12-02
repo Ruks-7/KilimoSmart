@@ -716,7 +716,7 @@ router.post('/send-receipt-email', async (req, res) => {
 
     // Get buyer details
     const buyerResult = await query(
-      `SELECT b.buyer_id, u.email, u.first_name, u.phone_number, b.address
+      `SELECT b.buyer_id, u.email, u.first_name, u.phone_number
        FROM BUYER b
        JOIN "USER" u ON b.user_id = u.user_id
        WHERE b.buyer_id = $1`,
@@ -775,32 +775,34 @@ router.post('/send-receipt-email', async (req, res) => {
         };
       }),
       totalAmount: parseFloat(order.total_amount) || items.reduce((sum, item) => sum + ((parseInt(item.quantity) || 1) * safePrice(item)), 0),
-      deliveryAddress: order.delivery_address || buyer.address || 'Not specified',
+      deliveryAddress: order.delivery_address || 'Not specified',
       paymentMethod: order.payment_method || 'M-Pesa',
       farmerName: order.farm_name || 'KilimoSmart Farmer'
     };
 
     console.log('Sending receipt with data:', JSON.stringify(receiptData, null, 2));
 
-    // Send receipt email
-    try {
-      await sendPurchaseReceipt(receiptData);
-      console.log('✅ Receipt email sent successfully');
-    } catch (emailError) {
-      console.error('❌ Email service error:', emailError);
-      throw emailError; // Re-throw to be caught by outer catch
-    }
+    // Send receipt email - non-blocking (don't fail order if email fails)
+    sendPurchaseReceipt(receiptData)
+      .then(() => {
+        console.log('✅ Receipt email sent successfully for order:', orderId);
+      })
+      .catch((emailError) => {
+        console.error('❌ Failed to send receipt email for order', orderId, ':', emailError.message);
+        // Don't throw - we still want the order to succeed even if email fails
+      });
 
+    // Return success immediately (email sends in background)
     res.json({
       success: true,
-      message: 'Receipt email sent successfully'
+      message: 'Order confirmed! Receipt will be sent to your email shortly.'
     });
   } catch (error) {
-    console.error('Send receipt email error:', error);
+    console.error('Send receipt email endpoint error:', error);
     console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Failed to send receipt email',
+      message: 'Failed to process receipt request',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

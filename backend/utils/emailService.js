@@ -286,23 +286,6 @@ async function sendWelcomeEmail(email, firstName) {
  * @returns {Promise} - SendGrid response
  */
 async function sendPurchaseReceipt(receiptData) {
-  // Check SendGrid configuration first
-  console.log('📧 sendPurchaseReceipt called with:', {
-    hasData: !!receiptData,
-    hasEmail: !!receiptData?.email,
-    hasItems: !!receiptData?.items,
-    itemsCount: receiptData?.items?.length
-  });
-
-  if (!process.env.SENDGRID_API_KEY) {
-    console.error('❌ SENDGRID_API_KEY not configured');
-    throw new Error('Email service not configured: missing SENDGRID_API_KEY');
-  }
-
-  if (!process.env.FROM_EMAIL) {
-    console.error('❌ FROM_EMAIL not configured');
-    throw new Error('Email service not configured: missing FROM_EMAIL');
-  }
 
   const {
     email,
