@@ -751,24 +751,36 @@ router.post('/send-receipt-email', async (req, res) => {
 
     const order = orderResult.rows[0];
 
-    // Prepare receipt data
+    // Safely calculate prices with fallbacks
+    const safePrice = (item) => {
+      const price = parseFloat(item.price_per_unit || item.pricePerUnit || item.price) || 0;
+      return price;
+    };
+
+    // Prepare receipt data with defensive coding
     const receiptData = {
       email: buyer.email,
       buyerName: buyer.first_name || 'Valued Customer',
       orderId: order.order_id,
-      orderDate: order.order_date,
-      items: items.map(item => ({
-        productName: item.productName || item.name,
-        quantity: item.quantity,
-        unit: item.unit,
-        pricePerUnit: item.price_per_unit || item.pricePerUnit || item.price,
-        subtotal: (item.quantity * (item.price_per_unit || item.pricePerUnit || item.price)).toFixed(2)
-      })),
-      totalAmount: order.total_amount || items.reduce((sum, item) => sum + (item.quantity * (item.price_per_unit || item.pricePerUnit || item.price)), 0),
-      deliveryAddress: order.delivery_address || buyer.address,
+      orderDate: order.order_date || new Date(),
+      items: items.map(item => {
+        const price = safePrice(item);
+        const qty = parseInt(item.quantity) || 1;
+        return {
+          productName: item.productName || item.name || 'Product',
+          quantity: qty,
+          unit: item.unit || 'units',
+          pricePerUnit: price,
+          subtotal: (qty * price).toFixed(2)
+        };
+      }),
+      totalAmount: parseFloat(order.total_amount) || items.reduce((sum, item) => sum + ((parseInt(item.quantity) || 1) * safePrice(item)), 0),
+      deliveryAddress: order.delivery_address || buyer.address || 'Not specified',
       paymentMethod: order.payment_method || 'M-Pesa',
-      farmerName: order.farm_name || 'Our Farmer'
+      farmerName: order.farm_name || 'KilimoSmart Farmer'
     };
+
+    console.log('Sending receipt with data:', JSON.stringify(receiptData, null, 2));
 
     // Send receipt email
     await sendPurchaseReceipt(receiptData);

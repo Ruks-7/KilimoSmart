@@ -298,25 +298,49 @@ async function sendPurchaseReceipt(receiptData) {
     farmerName,
   } = receiptData;
 
-  // Format order date
-  const formattedDate = new Date(orderDate).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  // Validate required fields
+  if (!email) {
+    throw new Error('Email address is required for receipt');
+  }
 
-  // Generate items HTML
-  const itemsHtml = items.map((item, index) => `
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    throw new Error('Items array is required for receipt');
+  }
+
+  // Format order date safely
+  let formattedDate;
+  try {
+    formattedDate = new Date(orderDate).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    formattedDate = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  // Generate items HTML with safe number parsing
+  const itemsHtml = items.map((item, index) => {
+    const pricePerUnit = parseFloat(item.pricePerUnit) || 0;
+    const subtotal = parseFloat(item.subtotal) || 0;
+    return `
     <tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px 8px;">${index + 1}</td>
-      <td style="padding: 12px 8px;">${item.productName}</td>
-      <td style="padding: 12px 8px; text-align: center;">${item.quantity} ${item.unit || 'units'}</td>
-      <td style="padding: 12px 8px; text-align: right;">KSh ${parseFloat(item.pricePerUnit).toFixed(2)}</td>
-      <td style="padding: 12px 8px; text-align: right; font-weight: 600;">KSh ${parseFloat(item.subtotal).toFixed(2)}</td>
+      <td style="padding: 12px 8px;">${item.productName || 'Product'}</td>
+      <td style="padding: 12px 8px; text-align: center;">${item.quantity || 1} ${item.unit || 'units'}</td>
+      <td style="padding: 12px 8px; text-align: right;">KSh ${pricePerUnit.toFixed(2)}</td>
+      <td style="padding: 12px 8px; text-align: right; font-weight: 600;">KSh ${subtotal.toFixed(2)}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const msg = {
     to: email,
@@ -524,7 +548,7 @@ async function sendPurchaseReceipt(receiptData) {
                 ${itemsHtml}
                 <tr class="total-row">
                   <td colspan="4" style="text-align: right;">TOTAL</td>
-                  <td style="text-align: right;">KSh ${parseFloat(totalAmount).toFixed(2)}</td>
+                  <td style="text-align: right;">KSh ${(parseFloat(totalAmount) || 0).toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>
@@ -566,12 +590,12 @@ async function sendPurchaseReceipt(receiptData) {
       Buyer: ${buyerName}
       Farmer: ${farmerName}
       Payment Method: ${paymentMethod}
-      Delivery Address: ${deliveryAddress}
+      Delivery Address: ${deliveryAddress || 'Not specified'}
       
       ORDER ITEMS:
-      ${items.map((item, i) => `${i + 1}. ${item.productName} - ${item.quantity} ${item.unit || 'units'} @ KSh ${item.pricePerUnit} = KSh ${item.subtotal}`).join('\n')}
+      ${items.map((item, i) => `${i + 1}. ${item.productName || 'Product'} - ${item.quantity || 1} ${item.unit || 'units'} @ KSh ${parseFloat(item.pricePerUnit || 0).toFixed(2)} = KSh ${parseFloat(item.subtotal || 0).toFixed(2)}`).join('\n')}
       
-      TOTAL: KSh ${totalAmount}
+      TOTAL: KSh ${(parseFloat(totalAmount) || 0).toFixed(2)}
       
       Thank you for your order!
       
