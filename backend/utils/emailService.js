@@ -286,6 +286,24 @@ async function sendWelcomeEmail(email, firstName) {
  * @returns {Promise} - SendGrid response
  */
 async function sendPurchaseReceipt(receiptData) {
+  // Check SendGrid configuration first
+  console.log('📧 sendPurchaseReceipt called with:', {
+    hasData: !!receiptData,
+    hasEmail: !!receiptData?.email,
+    hasItems: !!receiptData?.items,
+    itemsCount: receiptData?.items?.length
+  });
+
+  if (!process.env.SENDGRID_API_KEY) {
+    console.error('❌ SENDGRID_API_KEY not configured');
+    throw new Error('Email service not configured: missing SENDGRID_API_KEY');
+  }
+
+  if (!process.env.FROM_EMAIL) {
+    console.error('❌ FROM_EMAIL not configured');
+    throw new Error('Email service not configured: missing FROM_EMAIL');
+  }
+
   const {
     email,
     buyerName,
@@ -297,6 +315,8 @@ async function sendPurchaseReceipt(receiptData) {
     paymentMethod,
     farmerName,
   } = receiptData;
+
+  console.log('📧 Preparing receipt email:', { email, orderId, itemCount: items?.length });
 
   // Validate required fields
   if (!email) {
@@ -605,15 +625,21 @@ async function sendPurchaseReceipt(receiptData) {
   };
 
   try {
+    console.log('📧 Attempting to send email via SendGrid...');
     const response = await sgMail.send(msg);
-    console.log('✅ Purchase receipt sent to:', email);
+    console.log('✅ Purchase receipt sent successfully to:', email, 'Response:', response);
     return response;
   } catch (error) {
-    console.error('❌ Receipt email error:', error);
+    console.error('❌ Receipt email error:', error.message);
+    console.error('❌ Full error:', error);
     if (error.response) {
-      console.error('SendGrid error details:', error.response.body);
+      console.error('❌ SendGrid error details:', {
+        status: error.response.status,
+        body: error.response.body,
+        errors: error.response.body?.errors
+      });
     }
-    throw new Error('Failed to send receipt email');
+    throw error;
   }
 }
 
