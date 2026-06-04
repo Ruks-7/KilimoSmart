@@ -142,12 +142,8 @@ The frontend runs on `http://localhost:3000` and backend on `http://localhost:50
 - **Buyer** - Browse products, place orders, make payments, review products
 - **Admin** - Manage users, view transactions, handle reports, platform oversight
 
-## 🌍 Deployment
 
-### Production URL
-- **Live Site**: [kilimosmart.tech](https://kilimosmart.tech)
-
-### Deployment Platforms
+## Deployment Platforms
 - **Frontend**: Vercel
 - **Backend**: Vercel Serverless
 - **Database**: Neon PostgreSQL
