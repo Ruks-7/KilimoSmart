@@ -14,6 +14,22 @@ KilimoSmart is a full-stack web application that bridges the gap between farmers
 - **Product Reviews** - Build trust through buyer feedback
 - **Admin Dashboard** - Comprehensive platform management
 
+## 📸 Screenshots
+
+Here are a few key views of the KilimoSmart platform:
+
+### Admin dashboard
+![Admin dashboard](docs/screenshots/admin-dashboard.png)
+
+### Farmer dashboard
+![Farmer dashboard](docs/screenshots/farmer-dashboard.png)
+
+### Buyer marketplace
+![Buyer marketplace](docs/screenshots/buyer-marketplace.png)
+
+### Checkout / M-Pesa flow
+![Checkout flow](docs/screenshots/checkout-flow.png)
+
 ## 🏗️ Tech Stack
 
 ### Frontend
